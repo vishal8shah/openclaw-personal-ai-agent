@@ -7,7 +7,7 @@ title: Home
 
 ## Security-Hardened Deployment Guide
 
-A production-grade, defence-in-depth deployment guide for self-hosted AI agents on WSL2 Ubuntu.
+A security-hardened, defence-in-depth deployment guide for self-hosted AI agents on WSL2 Ubuntu.
 
 **What you get:** A 24/7 personal AI agent running on a recycled laptop for ~$0/month, connected via Telegram, powered by Google Gemini 3.1 Flash, and locked down with 10 independent security layers.
 

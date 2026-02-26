@@ -1,6 +1,6 @@
 # 🦞 OpenClaw Personal AI Agent — Security-Hardened Deployment
 
-> **A production-grade, defence-in-depth deployment guide for self-hosted AI agents on WSL2 Ubuntu**
+> **A security-hardened, defence-in-depth deployment guide for self-hosted AI agents on WSL2 Ubuntu**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform: WSL2](https://img.shields.io/badge/Platform-WSL2%20Ubuntu-orange.svg)](#prerequisites)

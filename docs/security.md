@@ -14,7 +14,7 @@ nav_order: 1
 
 ## About This Guide
 
-This guide documents a production-grade, security-hardened deployment of OpenClaw — a self-hosted personal AI agent that runs on your own hardware, connects via Telegram, and executes tasks using AI models like Google Gemini.
+This guide documents a security-hardened deployment of OpenClaw — a self-hosted personal AI agent that runs on your own hardware, connects via Telegram, and executes tasks using AI models like Google Gemini.
 
 In early 2026, security researchers discovered tens of thousands of publicly accessible OpenClaw instances running with default configurations — the vast majority with authentication bypasses, gateways exposed on every network interface, and no encryption at rest. The ClawHavoc campaign saw hundreds of malicious skills published to ClawHub, and an independent Snyk study found a significant percentage of ClawHub skills leak credentials in plaintext.
 

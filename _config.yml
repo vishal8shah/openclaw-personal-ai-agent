@@ -1,5 +1,5 @@
 title: "OpenClaw Personal AI Agent — Security-Hardened Deployment"
-description: "A production-grade, defence-in-depth deployment guide for self-hosted AI agents on WSL2 Ubuntu"
+description: "A security-hardened, defence-in-depth deployment guide for self-hosted AI agents on WSL2 Ubuntu"
 url: "https://vishal8shah.github.io"
 baseurl: "/openclaw-personal-ai-agent"
 
