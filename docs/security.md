@@ -66,6 +66,27 @@ wsl --set-default-version 2
 
 Restart your machine when prompted. After restart, Ubuntu will finish installing and ask you to create a Linux username and password.
 
+**Enable systemd** — required for service management (systemctl) to work in WSL2:
+
+```bash
+sudo nano /etc/wsl.conf
+```
+
+Add this block at the top:
+
+```ini
+[boot]
+systemd=true
+```
+
+Then restart WSL2 from PowerShell:
+
+```powershell
+wsl --shutdown
+```
+
+Reopen Ubuntu. All `systemctl` commands in this guide depend on this step.
+
 **Why WSL2:** It runs a full Linux kernel in a lightweight VM, giving OpenClaw a proper POSIX environment with process isolation from the Windows host. Running an AI agent directly on Windows without this isolation is a security antipattern — file permissions, process separation, and credential storage all work correctly in Linux in ways they do not on Windows natively.
 
 **Verify:**

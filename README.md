@@ -133,7 +133,7 @@ openclaw-personal-ai-agent/
 
 ## Security Notice
 
-This repository contains **no real credentials, API keys, or tokens**. All configuration files use placeholder values. If you find anything that looks like a real credential, please [open an issue](../../issues) immediately.
+This repository contains **no real credentials, API keys, or tokens**. All configuration files use placeholder values. If you find anything that looks like a real credential, please [open an issue](https://github.com/vishal8shah/openclaw-personal-ai-agent/issues) immediately.
 
 **Before every commit:**
 ```bash
