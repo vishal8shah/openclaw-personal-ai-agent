@@ -21,7 +21,7 @@ A production-grade, defence-in-depth deployment guide for self-hosted AI agents 
 
 🧩 **[Skills Guide](docs/skills)** — Safe skill installation with version pinning
 
-📦 **[GitHub Repository](https://github.com/YOUR_USERNAME/openclaw-personal-ai-agent)** — Clone the config templates and scripts
+📦 **[GitHub Repository](https://github.com/vishal8shah/openclaw-personal-ai-agent)** — Clone the config templates and scripts
 
 ---
 
