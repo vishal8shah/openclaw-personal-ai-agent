@@ -1,0 +1,33 @@
+# NEVER commit these — credentials and runtime data
+auth-profiles.json
+openclaw.json
+*.env
+.env*
+sessions/
+*.jsonl
+*.jsonl.lock
+credentials/
+identity/
+devices/
+telegram/
+logs/
+*.bak
+*.bak.*
+private/
+
+# Jekyll build output
+_site/
+.jekyll-cache/
+.jekyll-metadata
+Gemfile.lock
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
