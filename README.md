@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform: WSL2](https://img.shields.io/badge/Platform-WSL2%20Ubuntu-orange.svg)](#prerequisites)
-[![Security: 9-Layer](https://img.shields.io/badge/Security-9%20Layer%20Defence-green.svg)](#defence-in-depth-architecture)
+[![Security: 10-Layer](https://img.shields.io/badge/Security-10%20Layer%20Defence-green.svg)](#defence-in-depth-architecture)
 
 ---
 
@@ -15,7 +15,7 @@ A complete, battle-tested guide to deploying [OpenClaw](https://openclaw.ai) as 
 - Runs 24/7 on a recycled laptop (~$0/month ongoing cost)
 - Connects via Telegram for on-demand briefings (ASX, MAG7, AUD/USD, and more)
 - Uses Google Gemini 3.1 Flash as the AI backbone
-- Is locked down with **9 independent security layers** — not as an afterthought, but as the foundation
+- Is locked down with **10 independent security layers** — not as an afterthought, but as the foundation
 
 This isn't a quickstart. It's what a secure deployment actually looks like.
 
@@ -34,6 +34,7 @@ This guide was built the hard way — through real deployment, real errors, and 
 | Section | What You Get |
 |---|---|
 | [Full Setup Guide](docs/security.md) | End-to-end walkthrough from WSL2 to production |
+| [Network Isolation](docs/security.md#part-7--physical-network-isolation) | Dedicated router setup for experiment network |
 | [Security Hardening](docs/security.md#part-3--security-configuration) | Every setting explained with threat context |
 | [DNS Hardening](docs/security.md#13-wsl2-dns-hardening--the-step-most-guides-skip) | The WSL2 DNS fix most guides skip entirely |
 | [Sandbox Isolation](docs/security.md#part-6--sandbox-mode-docker) | Docker-based tool execution with zero network |
@@ -46,18 +47,19 @@ This guide was built the hard way — through real deployment, real errors, and 
 
 ## Defence-in-Depth Architecture
 
-This deployment implements 9 independent security layers. Any single layer failing does not compromise the system:
+This deployment implements 10 independent security layers. Any single layer failing does not compromise the system:
 
 ```
-Layer 1 — Firewall (UFW)          Default deny all inbound at kernel level
-Layer 2 — Network binding          Gateway loopback-only — zero external surface
-Layer 3 — Authentication           64-char cryptographically random token
-Layer 4 — Channel allowlist        Telegram denyByDefault + owner ID only
-Layer 5 — Tool policy              Allowlist — only permitted tools callable
-Layer 6 — Sandbox isolation        Docker container — no host access, no network
-Layer 7 — DNS hardening            Static resolv.conf — no race condition, no MITM
-Layer 8 — Credential hygiene       chmod 600, spend caps, rotation protocol
-Layer 9 — Supply chain             Verified, version-pinned skills only
+Layer 1  — Network isolation          Dedicated router — agent can't reach home network
+Layer 2  — Firewall (UFW)             Default deny all inbound at kernel level
+Layer 3  — Network binding             Gateway loopback-only — zero external surface
+Layer 4  — Authentication              64-char cryptographically random token
+Layer 5  — Channel allowlist           Telegram denyByDefault + owner ID only
+Layer 6  — Tool policy                 Allowlist — only permitted tools callable
+Layer 7  — Sandbox isolation           Docker container — no host access, no network
+Layer 8  — DNS hardening               Static resolv.conf — no race condition, no MITM
+Layer 9  — Credential hygiene          chmod 600, spend caps, rotation protocol
+Layer 10 — Supply chain                Verified, version-pinned skills only
 ```
 
 ---

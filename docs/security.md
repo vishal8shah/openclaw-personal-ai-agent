@@ -39,6 +39,7 @@ Understand what you're defending against before touching any configuration:
 
 | Threat | Attack Vector | Risk |
 |---|---|---|
+| Lateral movement | Compromised agent pivots to home devices | Critical |
 | Exposed gateway | Bound to 0.0.0.0, scannable by Shodan | Critical |
 | Unauthenticated access | No token auth — anyone with local IP has control | Critical |
 | Malicious skills | ClawHavoc credential-stealing skills on ClawHub | High |
@@ -428,9 +429,65 @@ openclaw doctor
 
 ---
 
-## Part 7 — Firewall Hardening (UFW)
+## Part 7 — Physical Network Isolation
 
-UFW adds a third independent network protection layer. Even if OpenClaw config is accidentally changed and the bind address reverts to 0.0.0.0, UFW blocks port 18789 at the kernel level regardless.
+**This is the layer that sits outside the entire software stack — and it's the one most home deployments never consider.**
+
+In enterprise environments, lab and experiment workloads run on isolated network segments — separate VLANs, dedicated switches, firewall rules that prevent lateral movement into production. A personal AI agent running 24/7 on your home network deserves the same treatment. If the agent host is compromised, you don't want the attacker pivoting to your family's devices, your NAS, your smart home gear, or your primary workstation.
+
+The solution is simple and nearly free: **use an old spare router to create a physically isolated network for the agent laptop.**
+
+### 7.1 Architecture
+
+```
+Internet
+   │
+   ├── Primary Router (home network)
+   │     ├── Family devices, phones, smart TV
+   │     ├── Primary workstation
+   │     └── NAS, printers, IoT
+   │
+   └── Old Spare Router (experiment network)
+         └── OpenClaw agent laptop ← isolated here
+```
+
+The agent laptop connects to the internet through the spare router. It has full outbound connectivity (needed for Telegram API, Gemini API, system updates) but **cannot see or reach any device on your home network**. Your home network cannot see the agent laptop either. This is the same principle as a lab domain network at work — experiments stay contained.
+
+### 7.2 Setup
+
+1. **Factory reset your old router** — clear any stale config, firmware update if available
+2. **Connect its WAN port to a LAN port on your primary router** — the spare router gets internet via your primary router but runs its own isolated subnet
+3. **Configure the spare router's LAN subnet to a different range** — e.g. if your home network is `192.168.1.x`, set the spare router to `192.168.50.x` or `10.0.50.x`
+4. **Disable UPnP and WPS on the spare router** — reduces attack surface
+5. **Connect the agent laptop to the spare router only** — via ethernet for reliability (WiFi works but ethernet is more stable for a 24/7 agent)
+6. **Disable any port forwarding** on the spare router — the agent only needs outbound HTTPS (port 443)
+
+### 7.3 Verification
+
+From the agent laptop:
+
+```bash
+# Confirm internet connectivity
+curl -s https://api.telegram.org | head -1
+
+# Confirm isolation — this should FAIL (timeout or unreachable)
+ping -c 2 192.168.1.1          # Replace with your primary router's IP
+ping -c 2 192.168.1.100        # Replace with any home device IP
+```
+
+If the pings to your home network succeed, the isolation isn't working — check that the spare router is running its own DHCP on a separate subnet.
+
+### 7.4 Why This Matters
+
+Software layers can be misconfigured, reverted, or bypassed. A physical network boundary cannot be crossed by a software bug. Even if every other security layer in this guide fails simultaneously — firewall disabled, gateway bound to 0.0.0.0, auth bypassed — the attacker is still trapped on an isolated network segment with nothing to pivot to except a single-purpose laptop.
+
+**Cost: $0** (you already have the old router). **Effort: 15 minutes.** **Impact: eliminates lateral movement entirely.**
+
+---
+
+## Part 8 — Firewall Hardening (UFW)
+
+UFW adds another independent network protection layer. Even if OpenClaw config is accidentally changed and the bind address reverts to 0.0.0.0, UFW blocks port 18789 at the kernel level regardless.
 
 ```bash
 # Set default policies
@@ -459,17 +516,18 @@ Default: deny (incoming), allow (outgoing)
 ```
 
 **Why this matters for defence-in-depth:**
-- Layer 1 (Firewall): UFW blocks port 18789 at kernel level
-- Layer 2 (Binding): Gateway bound to loopback — no external surface
-- Layer 3 (Auth): Token required for all API calls
+- Layer 1 (Physical): Isolated network — no lateral movement to home devices
+- Layer 2 (Firewall): UFW blocks port 18789 at kernel level
+- Layer 3 (Binding): Gateway bound to loopback — no external surface
+- Layer 4 (Auth): Token required for all API calls
 
 Any single layer failing does not compromise the system.
 
 ---
 
-## Part 8 — Health Monitoring
+## Part 9 — Health Monitoring
 
-### 8.1 Built-in Health Check
+### 9.1 Built-in Health Check
 
 ```bash
 # Run after every config change
@@ -482,7 +540,7 @@ openclaw security audit --deep
 openclaw health --json
 ```
 
-### 8.2 External Monitoring with healthchecks.io
+### 9.2 External Monitoring with healthchecks.io
 
 Without external monitoring, a crashed agent is invisible. You only find out when you notice hours later that Telegram stopped responding.
 
@@ -500,7 +558,7 @@ crontab -e
 
 If the agent crashes, healthchecks.io sends you an alert (email or Telegram) within 5 minutes.
 
-### 8.3 Systemd Service Management
+### 9.3 Systemd Service Management
 
 ```bash
 # Check service status
@@ -515,17 +573,17 @@ sudo systemctl enable openclaw-gateway
 
 ---
 
-## Part 9 — CVE Patch Management
+## Part 10 — CVE Patch Management
 
 Stay current on security patches. OpenClaw has had critical vulnerabilities — including WebSocket-based remote code execution bugs — that were patched in prior releases. Instances without update alerts stayed vulnerable for weeks after public disclosure.
 
-### 9.1 Subscribe to Security Advisories
+### 10.1 Subscribe to Security Advisories
 
 1. Go to `github.com/openclaw-ai/openclaw`
 2. Click **Watch** → **Custom** → tick **Security alerts**
 3. Subscribe to: `github.com/openclaw-ai/openclaw/security/advisories`
 
-### 9.2 Weekly Update Check
+### 10.2 Weekly Update Check
 
 ```bash
 # Manual check
@@ -547,7 +605,15 @@ crontab -e
 Run through this after full deployment:
 
 ```
-NETWORK
+PHYSICAL NETWORK
+[ ] Agent laptop connected to dedicated spare router — not the home network
+[ ] Spare router on a separate subnet from primary router
+[ ] UPnP and WPS disabled on spare router
+[ ] No port forwarding configured on spare router
+[ ] Verified: agent laptop cannot ping home network devices
+[ ] Verified: agent laptop has outbound internet (HTTPS/443)
+
+NETWORK (SOFTWARE)
 [ ] Gateway bind: "loopback" — verified with: ss -tlnp | grep 18789
 [ ] UFW active: default deny incoming, default allow outgoing
 [ ] Port 18789 blocked at UFW level
@@ -603,18 +669,19 @@ GIT / PUBLISHING
 
 ## Defence-in-Depth Architecture
 
-This deployment implements 9 independent security layers. Any single layer failing does not compromise the system:
+This deployment implements 10 independent security layers. Any single layer failing does not compromise the system:
 
 ```
-Layer 1 — Firewall (UFW):         Default deny all inbound at kernel level
-Layer 2 — Network binding:        Gateway loopback-only — zero external surface
-Layer 3 — Authentication:         64-char cryptographically random token
-Layer 4 — Channel allowlist:      Telegram denyByDefault + owner ID only
-Layer 5 — Tool policy:            Allowlist — only permitted tools callable
-Layer 6 — Sandbox isolation:      Docker container — no host access, no network
-Layer 7 — DNS hardening:          Static resolv.conf — no race condition, no MITM
-Layer 8 — Credential hygiene:     chmod 600, spend caps, rotation protocol
-Layer 9 — Supply chain:           Verified, version-pinned skills only
+Layer 1  — Network isolation:      Dedicated router — agent can't reach home network
+Layer 2  — Firewall (UFW):         Default deny all inbound at kernel level
+Layer 3  — Network binding:        Gateway loopback-only — zero external surface
+Layer 4  — Authentication:         64-char cryptographically random token
+Layer 5  — Channel allowlist:      Telegram denyByDefault + owner ID only
+Layer 6  — Tool policy:            Allowlist — only permitted tools callable
+Layer 7  — Sandbox isolation:      Docker container — no host access, no network
+Layer 8  — DNS hardening:          Static resolv.conf — no race condition, no MITM
+Layer 9  — Credential hygiene:     chmod 600, spend caps, rotation protocol
+Layer 10 — Supply chain:           Verified, version-pinned skills only
 ```
 
 ---
