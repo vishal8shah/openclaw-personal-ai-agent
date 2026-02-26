@@ -33,15 +33,15 @@ This guide was built the hard way — through real deployment, real errors, and 
 
 | Section | What You Get |
 |---|---|
-| [Full Setup Guide](docs/security) | End-to-end walkthrough from WSL2 to production |
-| [Network Isolation](docs/security#part-7--physical-network-isolation) | Dedicated router setup for experiment network |
-| [Security Hardening](docs/security#part-3--security-configuration) | Every setting explained with threat context |
-| [DNS Hardening](docs/security#13-wsl2-dns-hardening--the-step-most-guides-skip) | The WSL2 DNS fix most guides skip entirely |
-| [Sandbox Isolation](docs/security#part-6--sandbox-mode-docker) | Docker-based tool execution with zero network |
-| [Credential Security](docs/security#part-4--credential-security) | File permissions, spend caps, rotation protocol |
-| [Health Monitoring](docs/security#part-8--health-monitoring) | External alerting via healthchecks.io |
-| [Troubleshooting](docs/security#troubleshooting) | Every real error encountered + verified fix |
-| [Security Checklist](docs/security#security-checklist--complete-verification) | Complete verification checklist for auditing |
+| [Full Setup Guide](docs/security.md) | End-to-end walkthrough from WSL2 to production |
+| [Network Isolation](docs/security.md#part-7--physical-network-isolation) | Dedicated router setup for experiment network |
+| [Security Hardening](docs/security.md#part-3--security-configuration) | Every setting explained with threat context |
+| [DNS Hardening](docs/security.md#13-wsl2-dns-hardening--the-step-most-guides-skip) | The WSL2 DNS fix most guides skip entirely |
+| [Sandbox Isolation](docs/security.md#part-6--sandbox-mode-docker) | Docker-based tool execution with zero network |
+| [Credential Security](docs/security.md#part-4--credential-security) | File permissions, spend caps, rotation protocol |
+| [Health Monitoring](docs/security.md#part-9--health-monitoring) | External alerting via healthchecks.io |
+| [Troubleshooting](docs/security.md#troubleshooting) | Every real error encountered + verified fix |
+| [Security Checklist](docs/security.md#security-checklist--complete-verification) | Complete verification checklist for auditing |
 
 ---
 
@@ -75,7 +75,7 @@ Layer 10 — Supply chain                Verified, version-pinned skills only
 
 ## Quick Start
 
-> **Full guide:** [docs/security.md](docs/security)
+> **Full guide:** [docs/security.md](docs/security.md)
 
 ```bash
 # 1. Enable WSL2 (PowerShell as Admin)
@@ -101,7 +101,7 @@ openclaw doctor
 openclaw security audit --deep
 ```
 
-**Do not skip the security configuration.** The default config is optimised for getting started fast, not for safety. The [full guide](docs/security) walks through every setting with threat context.
+**Do not skip the security configuration.** The default config is optimised for getting started fast, not for safety. The [full guide](docs/security.md) walks through every setting with threat context.
 
 ---
 
