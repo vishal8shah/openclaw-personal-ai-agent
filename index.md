@@ -15,11 +15,11 @@ A production-grade, defence-in-depth deployment guide for self-hosted AI agents 
 
 ### Start Here
 
-📖 **[Complete Setup & Security Guide](docs/security.md)** — The full walkthrough from WSL2 to production
+📖 **[Complete Setup & Security Guide](docs/security)** — The full walkthrough from WSL2 to production
 
-🔧 **[Troubleshooting](docs/troubleshooting.md)** — Every real error encountered + verified fixes
+🔧 **[Troubleshooting](docs/troubleshooting)** — Every real error encountered + verified fixes
 
-🧩 **[Skills Guide](docs/skills.md)** — Safe skill installation with version pinning
+🧩 **[Skills Guide](docs/skills)** — Safe skill installation with version pinning
 
 📦 **[GitHub Repository](https://github.com/YOUR_USERNAME/openclaw-personal-ai-agent)** — Clone the config templates and scripts
 
