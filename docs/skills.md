@@ -41,7 +41,7 @@ clawhub install playwright-mcp
 ClawHub tracks installed skill versions in `.clawhub/lock.json` under your workspace directory. This lockfile records the exact version hash of each skill, ensuring reproducible installs.
 
 ```bash
-# View installed skills
+# View installed skills and versions
 clawhub list
 ```
 
@@ -50,11 +50,13 @@ Never rely on `latest` — a compromised update would be auto-installed. The loc
 ## Updating Skills
 
 ```bash
-# Sync and check for updates
-clawhub sync
-
-# Update a specific skill
+# Update a specific skill (after reviewing changelog)
 clawhub update SKILL_NAME
+
+# Update all installed skills
+clawhub update --all
 ```
 
 Always review the changelog before updating. Update one skill at a time and verify agent behaviour after each update.
+
+> **Note on `clawhub sync`:** The `sync` command scans local skills and publishes new or updated ones to the registry — it is a **publish/backup workflow**, not an update mechanism. To check for and apply upstream updates to installed skills, use `clawhub update`.

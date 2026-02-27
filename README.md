@@ -94,8 +94,8 @@ less install.sh
 bash install.sh
 source ~/.bashrc
 
-# 4. Run setup wizard
-openclaw onboard
+# 4. Run setup wizard (installs gateway as background service)
+openclaw onboard --install-daemon
 
 # 5. Apply hardened config — see docs/security.md for full walkthrough
 # 6. Run security audit

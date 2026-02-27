@@ -224,14 +224,20 @@ The installer handles Node detection, installation, and onboarding in one step. 
 ### 2.2 Run Initial Setup Wizard
 
 ```bash
-openclaw onboard
+openclaw onboard --install-daemon
 ```
 
-During onboarding you will configure:
+The `--install-daemon` flag installs the gateway as a background service (systemd user unit on Linux/WSL2) so it starts automatically. During onboarding you will configure:
 - Your AI model provider (select Google / Gemini)
 - Your Gemini API key (get from [aistudio.google.com](https://aistudio.google.com) → Get API Key)
 - Your Telegram bot token (get from @BotFather on Telegram → `/newbot`)
 - Your workspace directory
+
+Verify it's running:
+
+```bash
+openclaw gateway status
+```
 
 **Getting your Telegram user ID** — message @userinfobot on Telegram. It replies instantly with your numeric user ID. Save this — you'll need it for the allowlist config.
 
@@ -257,7 +263,7 @@ The config below follows the current [OpenClaw configuration reference](https://
   "agents": {
     "defaults": {
       "model": {
-        "primary": "gemini-3-flash-preview"
+        "primary": "google/gemini-3-flash-preview"
       },
       "workspace": "~/.openclaw/workspace",
       "sandbox": {
@@ -270,7 +276,7 @@ The config below follows the current [OpenClaw configuration reference](https://
     }
   },
   "tools": {
-    "allow": ["search", "read_file", "send_message", "browse_web"],
+    "allow": ["read", "message", "web_search", "web_fetch"],
     "deny": ["exec", "process", "write"]
   },
   "gateway": {
@@ -298,7 +304,7 @@ The config below follows the current [OpenClaw configuration reference](https://
 }
 ```
 
-> **What I tested vs. what's shown above:** My own deployment used an earlier config structure that included `agents.defaults.tools` (instead of top-level `tools`), `streaming: false` (instead of `"off"`), `allowFrom` without the `tg:` prefix, `gateway.mDNS.enabled: false` (instead of the env var approach), and a `denyByDefault` flag that no longer appears in current docs. The config above has been updated to match the current documented schema. If you're running an older version, your working config may look different — both patterns may work, but the current docs are the safer reference.
+> **What I tested vs. what's shown above:** My own deployment used an earlier config structure that included `agents.defaults.tools` (instead of top-level `tools`), tool names like `read_file`/`send_message`/`browse_web` (now `read`/`message`/`web_search`/`web_fetch`), model string without provider prefix (now `provider/model` format like `google/gemini-3-flash-preview`), `streaming: false` (instead of `"off"`), `allowFrom` without the `tg:` prefix, `gateway.mDNS.enabled: false` (instead of the env var approach), and a `denyByDefault` flag that no longer appears in current docs. The config above has been updated to match the current documented schema. If you're running an older version, your working config may look different — both patterns may work, but the current docs are the safer reference.
 
 > **Disabling mDNS:** To prevent the gateway from broadcasting its presence on the local network, add `OPENCLAW_DISABLE_BONJOUR=1` to your environment (shown in [Part 4](#part-4--credential-security)). The official docs describe this as the supported method. In earlier versions, a `gateway.mDNS` config key was available — if your version supports it, `discovery.mdns.mode: "minimal"` reduces TXT record exposure while keeping basic device discovery.
 
@@ -430,7 +436,7 @@ clawhub list
 clawhub update SKILL_NAME
 ```
 
-**Why version pinning matters:** If you always pull `latest`, a compromised update is automatically installed. The ClawHavoc campaign exploited this exact vector. The lockfile ensures you upgrade consciously, on your timeline, after reviewing the changelog. Use `clawhub sync` to reconcile local installs with the registry.
+**Why version pinning matters:** If you always pull `latest`, a compromised update is automatically installed. The ClawHavoc campaign exploited this exact vector. The lockfile ensures you upgrade consciously, on your timeline, after reviewing the changelog. Use `clawhub update SKILL_NAME` to update individual skills after reviewing their changelogs.
 
 ---
 
