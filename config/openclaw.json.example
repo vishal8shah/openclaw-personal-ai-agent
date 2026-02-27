@@ -1,34 +1,30 @@
 {
-  "meta": {
-    "lastTouchedVersion": "2026.2.x"
-  },
+  // OpenClaw uses JSON5 — comments and trailing commas are valid.
+  // Verify against https://docs.openclaw.ai/gateway/configuration-reference
+  // for your installed version.
+
   "agents": {
     "defaults": {
       "model": {
-        "primary": "google/gemini-3.1-flash"
+        "primary": "gemini-3-flash-preview"
       },
       "workspace": "~/.openclaw/workspace",
-      "tools": {
-        "policy": "allowlist",
-        "allowed": ["search", "read_file", "send_message", "browse_web"]
-      },
       "sandbox": {
-        "enabled": true,
         "mode": "all",
+        "workspaceAccess": "ro",
         "docker": {
-          "network": "none",
-          "workspaceAccess": "ro"
+          "network": "none"
         }
       }
     }
   },
+  "tools": {
+    "allow": ["search", "read_file", "send_message", "browse_web"],
+    "deny": ["exec", "process", "write"]
+  },
   "gateway": {
     "port": 18789,
-    "mode": "local",
     "bind": "loopback",
-    "mDNS": {
-      "enabled": false
-    },
     "auth": {
       "mode": "token",
       "token": "REPLACE_WITH_OUTPUT_OF_openssl_rand_-hex_32"
@@ -40,20 +36,12 @@
       "botToken": "REPLACE_WITH_BOTFATHER_TOKEN",
       "groupPolicy": "allowlist",
       "dmPolicy": "pairing",
-      "allowFrom": ["REPLACE_WITH_YOUR_TELEGRAM_USER_ID"],
-      "denyByDefault": true,
-      "streaming": false,
+      "allowFrom": ["tg:REPLACE_WITH_YOUR_TELEGRAM_USER_ID"],
+      "streaming": "off",
       "network": {
-        "autoSelectFamily": true
+        "autoSelectFamily": true,
+        "dnsResultOrder": "ipv4first"
       }
-    }
-  },
-  "skills": {
-    "nano-pdf": {
-      "version": "REPLACE_WITH_INSTALLED_VERSION"
-    },
-    "playwright-mcp": {
-      "version": "REPLACE_WITH_INSTALLED_VERSION"
     }
   }
 }

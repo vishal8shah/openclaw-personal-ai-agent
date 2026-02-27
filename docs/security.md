@@ -8,7 +8,7 @@ nav_order: 1
 
 > **Self-hosted AI agent deployment with defence-in-depth hardening on WSL2 Ubuntu**
 >
-> **Version:** 2026.2.21-2 | **Platform:** Windows WSL2 + Ubuntu | **Model:** Google Gemini 3.1 Flash
+> **Tested against:** OpenClaw 2026.2.x | **Platform:** Windows WSL2 + Ubuntu | **Model:** Google Gemini 3 Flash
 
 ---
 
@@ -16,9 +16,11 @@ nav_order: 1
 
 This guide documents a security-hardened deployment of OpenClaw — a self-hosted personal AI agent that runs on your own hardware, connects via Telegram, and executes tasks using AI models like Google Gemini.
 
-In early 2026, security researchers discovered tens of thousands of publicly accessible OpenClaw instances running with default configurations — the vast majority with authentication bypasses, gateways exposed on every network interface, and no encryption at rest. The ClawHavoc campaign saw hundreds of malicious skills published to ClawHub, and an independent Snyk study found a significant percentage of ClawHub skills leak credentials in plaintext.
+In early 2026, security researchers reported widespread publicly accessible OpenClaw instances running with default configurations — many with authentication bypassed, gateways exposed on every network interface, and no encryption at rest. The ClawHavoc campaign saw malicious skills published to ClawHub, and independent research found a notable percentage of ClawHub skills leaking credentials in plaintext.
 
 This guide was built the hard way — through real deployment, real errors, and real fixes — so you don't have to.
+
+> **Transparency note:** OpenClaw is evolving quickly. This guide is honest about two things: **what I actually used during my setup** (preserved for transparency), and **what the current official docs recommend** (which readers should follow). Where the two differ, both are shown and clearly labelled. For anything version-sensitive, always cross-reference the [official OpenClaw docs](https://docs.openclaw.ai).
 
 ---
 
@@ -66,7 +68,7 @@ wsl --set-default-version 2
 
 Restart your machine when prompted. After restart, Ubuntu will finish installing and ask you to create a Linux username and password.
 
-**Enable systemd** — required for service management (systemctl) to work in WSL2:
+**Enable systemd** — required for service management to work in WSL2:
 
 ```bash
 sudo nano /etc/wsl.conf
@@ -85,7 +87,7 @@ Then restart WSL2 from PowerShell:
 wsl --shutdown
 ```
 
-Reopen Ubuntu. All `systemctl` commands in this guide depend on this step.
+Reopen Ubuntu. All service commands in this guide depend on this step.
 
 **Why WSL2:** It runs a full Linux kernel in a lightweight VM, giving OpenClaw a proper POSIX environment with process isolation from the Windows host. Running an AI agent directly on Windows without this isolation is a security antipattern — file permissions, process separation, and credential storage all work correctly in Linux in ways they do not on Windows natively.
 
@@ -102,18 +104,18 @@ wsl --list --verbose
 
 ```bash
 sudo apt update && sudo apt upgrade -y
-sudo apt install -y curl wget git nano ufw
+sudo apt install -y curl wget git nano ufw dnsutils
 ```
 
 ---
 
-### 1.3 WSL2 DNS Hardening — The Step Most Guides Skip
+### 1.3 WSL2 DNS Hardening — Optional but Recommended
 
-**This is one of the most overlooked security and stability configurations for WSL2 deployments.**
+> **Context:** This section documents troubleshooting I went through during my own WSL2 deployment. WSL2's DNS handling varies by Windows version, build, and network configuration. You may not need all of these steps — but if your agent starts dropping connections to Telegram or Gemini APIs, this section is where to look.
 
-By default, WSL2 regenerates `/etc/resolv.conf` and `/etc/hosts` on every reboot. This creates two serious risks:
+By default, WSL2 regenerates `/etc/resolv.conf` and `/etc/hosts` on every reboot. This can create two issues:
 
-1. **Network instability** — WSL2's auto-generated DNS sometimes points to an unreachable address, causing your agent to lose connectivity to Telegram and Gemini APIs silently
+1. **Network instability** — WSL2's auto-generated DNS sometimes points to an unreachable address, causing your agent to lose connectivity silently
 2. **IPv6/IPv4 race condition** — WSL2 sometimes resolves `api.telegram.org` to an IPv6 address that Windows cannot route, causing connection failures that are extremely difficult to diagnose
 
 **Step 1 — Disable WSL2 auto-generation:**
@@ -122,9 +124,12 @@ By default, WSL2 regenerates `/etc/resolv.conf` and `/etc/hosts` on every reboot
 sudo nano /etc/wsl.conf
 ```
 
-Paste exactly:
+Ensure your wsl.conf contains both blocks (add the `[network]` section below your existing `[boot]` section):
 
 ```ini
+[boot]
+systemd=true
+
 [network]
 generateResolvConf = false
 generateHosts = false
@@ -146,13 +151,13 @@ nameserver 8.8.8.8
 nameserver 8.8.4.4
 ```
 
-**Step 3 — Make it immutable:**
+**Step 3 — Make it immutable (if supported):**
 
 ```bash
 sudo chattr +i /etc/resolv.conf
 ```
 
-**Why `chattr +i`:** Without this flag, even with `generateResolvConf = false`, some Ubuntu packages (including `resolvconf`) can still overwrite the file. The immutable flag is the final guarantee that nothing touches your DNS config.
+> **Note:** `chattr +i` may not work on all WSL2 filesystem configurations. If you see `Operation not supported`, don't worry — the `wsl.conf` setting `generateResolvConf = false` is the primary permanent fix that prevents WSL2 from overwriting your DNS. The `chattr` flag is a belt-and-braces safeguard for systems that support it.
 
 **Step 4 — Pin Telegram API to IPv4:**
 
@@ -182,7 +187,7 @@ Then reopen Ubuntu.
 
 ```bash
 cat /etc/resolv.conf          # Should show 8.8.8.8
-lsattr /etc/resolv.conf       # Should show ----i--- flag
+lsattr /etc/resolv.conf       # Should show ----i--- flag (if chattr was supported)
 curl -v https://api.telegram.org   # Should resolve to IPv4
 ```
 
@@ -194,16 +199,27 @@ curl -v https://api.telegram.org   # Should resolve to IPv4
 
 > **Security note:** Piping remote scripts directly into bash (`curl | bash`) is convenient but skips inspection. The commands below download first, let you review, then execute.
 
+**Recommended (current official install path):**
+
 ```bash
-curl -fsSL https://get.openclaw.ai -o install.sh
+curl -fsSL https://openclaw.ai/install.sh -o install.sh
 less install.sh               # Review the script before running
 bash install.sh
 source ~/.bashrc
 
 # Verify
 openclaw --version
-# Should show: OpenClaw 2026.x.x or similar
 ```
+
+The installer handles Node detection, installation, and onboarding in one step. See [docs.openclaw.ai/install](https://docs.openclaw.ai/install) for alternative methods (npm, Docker, Podman, Nix).
+
+> **What I used:** During my own setup I used an earlier install path (`get.openclaw.ai`). I'm preserving that below for transparency, but readers should follow the current official docs above.
+>
+> ```bash
+> curl -fsSL https://get.openclaw.ai -o install.sh
+> less install.sh
+> bash install.sh
+> ```
 
 ### 2.2 Run Initial Setup Wizard
 
@@ -231,40 +247,35 @@ All configuration lives in:
 nano ~/.openclaw/openclaw.json
 ```
 
-Apply this complete hardened configuration:
+**Recommended hardened configuration (based on current OpenClaw docs):**
 
-```json
+The config below follows the current [OpenClaw configuration reference](https://docs.openclaw.ai/gateway/configuration-reference) and [configuration examples](https://docs.openclaw.ai/gateway/configuration-examples). Verify against those docs for your installed version — the schema evolves between releases.
+
+```json5
 {
-  "meta": {
-    "lastTouchedVersion": "2026.2.x"
-  },
+  // OpenClaw uses JSON5 — comments and trailing commas are valid
   "agents": {
     "defaults": {
       "model": {
-        "primary": "google/gemini-3.1-flash"
+        "primary": "gemini-3-flash-preview"
       },
       "workspace": "~/.openclaw/workspace",
-      "tools": {
-        "policy": "allowlist",
-        "allowed": ["search", "read_file", "send_message", "browse_web"]
-      },
       "sandbox": {
-        "enabled": true,
         "mode": "all",
+        "workspaceAccess": "ro",
         "docker": {
-          "network": "none",
-          "workspaceAccess": "ro"
+          "network": "none"
         }
       }
     }
   },
+  "tools": {
+    "allow": ["search", "read_file", "send_message", "browse_web"],
+    "deny": ["exec", "process", "write"]
+  },
   "gateway": {
     "port": 18789,
-    "mode": "local",
     "bind": "loopback",
-    "mDNS": {
-      "enabled": false
-    },
     "auth": {
       "mode": "token",
       "token": "YOUR_GENERATED_TOKEN_HERE"
@@ -276,24 +287,22 @@ Apply this complete hardened configuration:
       "botToken": "YOUR_BOT_TOKEN_HERE",
       "groupPolicy": "allowlist",
       "dmPolicy": "pairing",
-      "allowFrom": ["YOUR_TELEGRAM_USER_ID_HERE"],
-      "denyByDefault": true,
-      "streaming": false,
+      "allowFrom": ["tg:YOUR_TELEGRAM_USER_ID_HERE"],
+      "streaming": "off",
       "network": {
-        "autoSelectFamily": true
+        "autoSelectFamily": true,
+        "dnsResultOrder": "ipv4first"
       }
-    }
-  },
-  "skills": {
-    "nano-pdf": {
-      "version": "PINNED_VERSION_HERE"
-    },
-    "playwright-mcp": {
-      "version": "PINNED_VERSION_HERE"
     }
   }
 }
 ```
+
+> **What I tested vs. what's shown above:** My own deployment used an earlier config structure that included `agents.defaults.tools` (instead of top-level `tools`), `streaming: false` (instead of `"off"`), `allowFrom` without the `tg:` prefix, `gateway.mDNS.enabled: false` (instead of the env var approach), and a `denyByDefault` flag that no longer appears in current docs. The config above has been updated to match the current documented schema. If you're running an older version, your working config may look different — both patterns may work, but the current docs are the safer reference.
+
+> **Disabling mDNS:** To prevent the gateway from broadcasting its presence on the local network, add `OPENCLAW_DISABLE_BONJOUR=1` to your environment (shown in [Part 4](#part-4--credential-security)). The official docs describe this as the supported method. In earlier versions, a `gateway.mDNS` config key was available — if your version supports it, `discovery.mdns.mode: "minimal"` reduces TXT record exposure while keeping basic device discovery.
+
+> **Config format note:** OpenClaw uses JSON5 (supports comments and trailing commas). Do not validate with `python3 -m json.tool` as it will reject valid JSON5 features. Use `openclaw doctor` for config validation instead.
 
 ### Why Each Security Setting Matters
 
@@ -301,14 +310,14 @@ Apply this complete hardened configuration:
 |---|---|---|
 | `bind: loopback` | Gateway only listens on 127.0.0.1 | Scannable by Shodan within hours |
 | `auth.mode: token` | Requires 64-char token for all API calls | Any local process controls your agent |
-| `mDNS: false` | Agent invisible to network scanners | Every LAN device discovers your agent |
-| `denyByDefault: true` | Bot ignores all unknown senders | Anyone who finds your bot can command it |
-| `allowFrom: [yourID]` | Only your Telegram ID is authorised | Any Telegram user can interact |
-| `groupPolicy: allowlist` | Bot ignores group chats | Group members can inject commands |
+| `OPENCLAW_DISABLE_BONJOUR=1` | Agent invisible to network scanners | Every LAN device discovers your agent |
 | `dmPolicy: pairing` | New DMs require explicit approval | Unknown users bypass your allowlist |
-| `tools.policy: allowlist` | Only listed tools are callable | Compromised agent can do anything |
+| `allowFrom: [tg:yourID]` | Only your Telegram ID is authorised | Any Telegram user can interact |
+| `groupPolicy: allowlist` | Bot ignores group chats | Group members can inject commands |
+| `streaming: "off"` | Disables partial message streaming | Potentially leaks partial responses |
+| `tools.allow` | Only listed tools are callable | Compromised agent can do anything |
 | `sandbox.enabled: true` | Tool calls run in Docker isolation | Malicious code accesses host filesystem |
-| `sandbox.network: none` | Sandboxed containers have no network | Malicious code can exfiltrate data |
+| `sandbox.docker.network: none` | Sandboxed containers have no network | Malicious code can exfiltrate data |
 | Skill version pinning | Fixed version, no auto-updates | Compromised skill update auto-installed |
 
 **Generate your gateway token:**
@@ -322,7 +331,7 @@ openssl rand -hex 32
 After editing config:
 
 ```bash
-sudo systemctl restart openclaw-gateway
+openclaw gateway restart
 openclaw doctor
 ```
 
@@ -332,27 +341,36 @@ openclaw doctor
 
 ### 4.1 File Permissions
 
+API keys are stored in agent-scoped auth profiles. The exact path depends on your agent ID — find yours with:
+
+```bash
+find ~/.openclaw -name "auth-profiles.json"
+```
+
+The typical path is `~/.openclaw/agents/<agentId>/agent/auth-profiles.json`. Lock both config files down:
+
 ```bash
 chmod 600 ~/.openclaw/openclaw.json
-chmod 600 ~/.openclaw/auth-profiles.json
+chmod 600 ~/.openclaw/agents/*/agent/auth-profiles.json
 
 # Verify
-ls -la ~/.openclaw/
-# Both files should show: -rw------- (owner read/write only)
+ls -la ~/.openclaw/openclaw.json
+# Should show: -rw------- (owner read/write only)
 ```
 
 **Why `chmod 600`:** Default file creation on Linux is 644 — world-readable. Your bot token and Gemini API key are sitting in those files. `chmod 600` means only your user account can read them. No other process, no accidental terminal output visible in logs, no world-readable credentials.
 
 ### 4.2 Disable ClawHub Telemetry
 
+> **Note:** The ClawHub CLI was originally distributed as `clawdhub` in earlier releases. It has since been renamed to `clawhub`. This guide uses the current name `clawhub` throughout. If you installed during the earlier period, your system may still have the old binary name — both should work, but `clawhub` is the current documented name.
+
 ```bash
 echo 'export CLAWHUB_DISABLE_TELEMETRY=1' >> ~/.bashrc
+echo 'export OPENCLAW_DISABLE_BONJOUR=1' >> ~/.bashrc
 source ~/.bashrc
 ```
 
-**Why:** ClawHub telemetry sends install snapshots on every skill operation, including environment metadata. Disabling it eliminates a background data exfiltration channel you may not have consented to.
-
-> **Note:** Verify the exact environment variable name in the [OpenClaw documentation](https://openclaw.ai/docs) for your installed version, as it may vary between releases.
+**Why:** ClawHub sends a minimal install snapshot during `clawhub sync` to compute install counts. Disabling it eliminates this background data transmission if you prefer not to participate. The Bonjour/mDNS disable prevents the gateway from broadcasting its presence on the local network (see [Part 3](#part-3--security-configuration)).
 
 ### 4.3 API Spend Cap
 
@@ -370,43 +388,49 @@ If your API key is ever visible in terminal output, a screenshot, a log file, or
 ```bash
 # Gemini: aistudio.google.com → API Keys → Delete old → Create new
 # Telegram: @BotFather → /revoke → regenerate token
-# Then update ~/.openclaw/auth-profiles.json with new values
+# Then update auth-profiles.json with new values:
+find ~/.openclaw -name "auth-profiles.json" -exec nano {} \;
 ```
 
 ---
 
 ## Part 5 — Skill Installation (Security-First Approach)
 
-### 5.1 Only Install Verified Skills
+### 5.1 Review Skills Before Installing
 
-The ClawHavoc campaign placed hundreds of malicious skills on ClawHub — the majority from a single coordinated attacker. Always check before installing:
-
-```bash
-# Review skill details before installing
-clawdhub info SKILL_NAME
-
-# Check VirusTotal verification badge in output
-# Look for: "Verified: true" and "ClawHavoc: clean"
-```
-
-### 5.2 Install Approved Skills
+The ClawHavoc campaign placed malicious skills on ClawHub. Always review before installing:
 
 ```bash
-clawdhub install nano-pdf
-clawdhub install playwright-mcp
+# Search for skills by name or function
+clawhub search "pdf"
+
+# Check the skill page on clawhub.ai for community feedback, stars, and version history
 ```
 
-Both are verified clean. nano-pdf enables document analysis; playwright-mcp enables web automation.
+> **Note on `clawhub search`:** The current documented ClawHub CLI commands are `search`, `install`, `update`, `list`, `publish`, and `sync`. Other commands (like `info`) may exist in some versions but are not in the current public docs — if you use them and they work, treat them as version-specific behaviour.
 
-### 5.3 Verify Installed Versions For Pinning
+### 5.2 Install Skills Deliberately
 
 ```bash
-clawdhub list --installed
-# Note the exact version numbers
-# Update the "skills" section of openclaw.json with these versions
+clawhub install nano-pdf
+clawhub install playwright-mcp
 ```
 
-**Why version pinning:** If you run `latest`, a compromised update is automatically pulled on next restart. The ClawHavoc campaign exploited this exact vector. Pinning means you upgrade consciously, on your timeline, after reviewing the changelog.
+Both were reviewed before install and deliberately version-tracked. nano-pdf enables document analysis; playwright-mcp enables web automation.
+
+### 5.3 Version Pinning via Lockfile
+
+ClawHub tracks installed skill versions in `.clawhub/lock.json` under your workspace directory. This lockfile records the exact version hash of each installed skill.
+
+```bash
+# View installed skills and versions
+clawhub list
+
+# Update a specific skill (after reviewing changelog)
+clawhub update SKILL_NAME
+```
+
+**Why version pinning matters:** If you always pull `latest`, a compromised update is automatically installed. The ClawHavoc campaign exploited this exact vector. The lockfile ensures you upgrade consciously, on your timeline, after reviewing the changelog. Use `clawhub sync` to reconcile local installs with the registry.
 
 ---
 
@@ -444,7 +468,7 @@ grep -A6 "sandbox" ~/.openclaw/openclaw.json
 **Critical:** Never set `"network": "host"` in sandbox config. It defeats isolation entirely and is blocked by OpenClaw's security defaults.
 
 ```bash
-sudo systemctl restart openclaw-gateway
+openclaw gateway restart
 openclaw doctor
 ```
 
@@ -579,18 +603,20 @@ crontab -e
 
 If the agent crashes, healthchecks.io sends you an alert (email or Telegram) within 5 minutes.
 
-### 9.3 Systemd Service Management
+### 9.3 Gateway Service Management
 
 ```bash
 # Check service status
-sudo systemctl status openclaw-gateway
+openclaw gateway status
 
 # Live logs
-sudo journalctl -u openclaw-gateway -f
+openclaw logs --follow
 
-# Enable auto-start on boot
-sudo systemctl enable openclaw-gateway
+# Restart after config changes
+openclaw gateway restart
 ```
+
+> **Advanced:** If you need raw systemd access, the gateway runs as a user service. Use `systemctl --user status openclaw-gateway.service` and `journalctl --user -u openclaw-gateway.service -f`. The `openclaw gateway` commands are preferred as they are version-stable.
 
 ---
 
@@ -607,14 +633,16 @@ Stay current on security patches. OpenClaw has had critical vulnerabilities — 
 ### 10.2 Weekly Update Check
 
 ```bash
-# Manual check
-openclaw update check
-openclaw update apply   # After reviewing changelog
+# Check for updates
+openclaw update
+
+# Review what's available
+openclaw update status
 
 # Automated weekly check (add to crontab)
 crontab -e
 # Add:
-0 9 * * 1 openclaw update check
+0 9 * * 1 openclaw update status
 ```
 
 **Patch SLA:** Apply patches rated CVSS 7.0+ within 24 hours of advisory. CVSS 4.0–6.9 within 7 days.
@@ -638,13 +666,12 @@ NETWORK (SOFTWARE)
 [ ] Gateway bind: "loopback" — verified with: ss -tlnp | grep 18789
 [ ] UFW active: default deny incoming, default allow outgoing
 [ ] Port 18789 blocked at UFW level
-[ ] mDNS broadcasting disabled in config
+[ ] OPENCLAW_DISABLE_BONJOUR=1 set in ~/.bashrc
 
 AUTHENTICATION
 [ ] Gateway auth mode: "token"
 [ ] Token generated with: openssl rand -hex 32
-[ ] Telegram allowFrom contains ONLY your user ID
-[ ] denyByDefault: true set
+[ ] Telegram allowFrom contains ONLY your user ID (tg: prefix)
 [ ] groupPolicy: allowlist set
 [ ] dmPolicy: pairing set
 
@@ -656,17 +683,16 @@ CREDENTIALS
 [ ] CLAWHUB_DISABLE_TELEMETRY=1 in ~/.bashrc
 
 SKILLS & TOOLS
-[ ] Only VirusTotal-verified skills installed
-[ ] ClawHavoc-flagged skills declined at install prompt
-[ ] Tool allowlist configured (only needed tools enabled)
+[ ] All installed skills reviewed before install
+[ ] Tool allow/deny lists configured (only needed tools enabled)
 [ ] Sandbox mode enabled with Docker
 [ ] Sandbox network: "none" (no exfiltration path)
-[ ] Skill versions pinned (no "latest" tags)
+[ ] Skill versions tracked via .clawhub/lock.json
 
-DNS (WSL2 SPECIFIC)
+DNS (WSL2 SPECIFIC — IF CONFIGURED)
 [ ] generateResolvConf=false in /etc/wsl.conf
 [ ] generateHosts=false in /etc/wsl.conf
-[ ] /etc/resolv.conf immutable: lsattr shows ----i---
+[ ] /etc/resolv.conf is a real static file (not a symlink)
 [ ] api.telegram.org pinned to IPv4 in /etc/hosts
 [ ] DNS verified after WSL2 restart
 
@@ -697,12 +723,12 @@ Layer 1  — Network isolation:      Dedicated router — agent can't reach home
 Layer 2  — Firewall (UFW):         Default deny all inbound at kernel level
 Layer 3  — Network binding:        Gateway loopback-only — zero external surface
 Layer 4  — Authentication:         64-char cryptographically random token
-Layer 5  — Channel allowlist:      Telegram denyByDefault + owner ID only
-Layer 6  — Tool policy:            Allowlist — only permitted tools callable
+Layer 5  — Channel allowlist:      DM pairing + owner ID only
+Layer 6  — Tool policy:            Allow/deny lists — only permitted tools callable
 Layer 7  — Sandbox isolation:      Docker container — no host access, no network
-Layer 8  — DNS hardening:          Static resolv.conf — no race condition, no MITM
+Layer 8  — DNS hardening:          Static resolv.conf (WSL2-specific, if configured)
 Layer 9  — Credential hygiene:     chmod 600, spend caps, rotation protocol
-Layer 10 — Supply chain:           Verified, version-pinned skills only
+Layer 10 — Supply chain:           Reviewed, version-tracked skills only
 ```
 
 ---
@@ -712,8 +738,8 @@ Layer 10 — Supply chain:           Verified, version-pinned skills only
 ### Agent not responding on Telegram
 
 ```bash
-sudo systemctl status openclaw-gateway
-sudo journalctl -u openclaw-gateway --since "10 min ago"
+openclaw gateway status
+openclaw logs --follow
 curl -v https://api.telegram.org
 cat /etc/resolv.conf          # Verify DNS hasn't been overwritten
 ```
@@ -721,22 +747,31 @@ cat /etc/resolv.conf          # Verify DNS hasn't been overwritten
 ### DNS overwritten after update
 
 ```bash
-lsattr /etc/resolv.conf       # If no 'i' flag, file was changed
-sudo chattr +i /etc/resolv.conf   # Re-apply immutable flag
+# Check if resolv.conf is still a real file (not a symlink)
+ls -la /etc/resolv.conf
+
+# If overwritten, recreate:
+sudo rm /etc/resolv.conf
+echo -e "nameserver 8.8.8.8\nnameserver 8.8.4.4" | sudo tee /etc/resolv.conf
+# Optionally re-apply immutable flag if your filesystem supports it:
+sudo chattr +i /etc/resolv.conf
 ```
 
-### openclaw doctor failing
+### Config validation failing
 
 ```bash
-openclaw config validate       # Check config syntax
-cat ~/.openclaw/openclaw.json | python3 -m json.tool   # Verify valid JSON
+# Use OpenClaw's built-in doctor (supports JSON5 configs with comments)
+openclaw doctor
+
+# Do NOT use python3 -m json.tool — it rejects valid JSON5 features
+# like comments and trailing commas
 ```
 
 ### Gateway not starting
 
 ```bash
 ss -tlnp | grep 18789          # Check if port is already in use
-sudo systemctl restart openclaw-gateway
+openclaw gateway restart
 openclaw doctor
 ```
 
@@ -752,4 +787,4 @@ newgrp docker                  # Apply in current session
 
 ---
 
-*Built through real deployment. Every error in the troubleshooting section was real. Every fix was tested.*
+*Built through real deployment. Every error in the troubleshooting section was real. Every fix was tested. Where the product has evolved since, both the historical and current-docs paths are shown.*

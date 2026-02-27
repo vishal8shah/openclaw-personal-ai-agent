@@ -11,8 +11,8 @@ Every error below was encountered during real deployment. Every fix was tested.
 ## Agent not responding on Telegram
 
 ```bash
-sudo systemctl status openclaw-gateway
-sudo journalctl -u openclaw-gateway --since "10 min ago"
+openclaw gateway status
+openclaw logs --follow
 curl -v https://api.telegram.org
 cat /etc/resolv.conf
 ```
@@ -22,26 +22,35 @@ cat /etc/resolv.conf
 ## DNS overwritten after system update
 
 ```bash
-lsattr /etc/resolv.conf       # Check if immutable flag is still set
-sudo chattr +i /etc/resolv.conf   # Re-apply if missing
+# Check if resolv.conf is still a real file
+ls -la /etc/resolv.conf
+
+# If it's been reverted to a symlink, recreate:
+sudo rm /etc/resolv.conf
+echo -e "nameserver 8.8.8.8\nnameserver 8.8.4.4" | sudo tee /etc/resolv.conf
+
+# Optionally re-apply immutable flag if supported:
+sudo chattr +i /etc/resolv.conf
 ```
 
-Some Ubuntu packages (notably `resolvconf`) can strip the immutable flag during upgrades.
+Verify that `/etc/wsl.conf` still contains `generateResolvConf = false` — this is the primary permanent fix.
 
-## openclaw doctor failing
+## Config validation failing
 
 ```bash
-openclaw config validate
-cat ~/.openclaw/openclaw.json | python3 -m json.tool   # Check for JSON syntax errors
+# Use OpenClaw's built-in validation (supports JSON5)
+openclaw doctor
 ```
 
-**Common cause:** Trailing comma in JSON after editing config manually.
+**Important:** Do not use `python3 -m json.tool` for config validation. OpenClaw config is JSON5 (supports comments and trailing commas), which strict JSON parsers will reject as invalid.
+
+**Common cause:** Trailing comma or misplaced key after editing config manually. Use `openclaw config set` for individual changes instead of hand-editing.
 
 ## Gateway not starting
 
 ```bash
 ss -tlnp | grep 18789          # Check if port is already in use
-sudo systemctl restart openclaw-gateway
+openclaw gateway restart
 openclaw doctor
 ```
 
@@ -60,7 +69,7 @@ sudo usermod -aG docker $USER  # Add yourself to docker group
 ```bash
 docker run hello-world         # Verify Docker itself works
 sudo systemctl restart docker
-sudo systemctl restart openclaw-gateway
+openclaw gateway restart
 ```
 
 ## healthchecks.io not receiving pings

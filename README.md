@@ -14,7 +14,7 @@ A complete, battle-tested guide to deploying [OpenClaw](https://openclaw.ai) as 
 
 - Runs 24/7 on a recycled laptop (~$0/month ongoing cost)
 - Connects via Telegram for on-demand briefings (ASX, MAG7, AUD/USD, and more)
-- Uses Google Gemini 3.1 Flash as the AI backbone
+- Uses Google Gemini 3 Flash as the AI backbone
 - Is locked down with **10 independent security layers** — not as an afterthought, but as the foundation
 
 This isn't a quickstart. It's what a secure deployment actually looks like.
@@ -23,9 +23,11 @@ This isn't a quickstart. It's what a secure deployment actually looks like.
 
 ## Why This Exists
 
-Most OpenClaw deployment guides optimise for speed. Get it running, worry about security later. The problem is that "later" never comes — and in early 2026, security researchers found tens of thousands of publicly accessible OpenClaw instances running with default configurations: authentication bypassed, gateways exposed on every network interface, no encryption at rest.
+Most OpenClaw deployment guides optimise for speed. Get it running, worry about security later. The problem is that "later" never comes — and in early 2026, security researchers reported widespread publicly accessible OpenClaw instances running with default configurations: authentication bypassed, gateways exposed on every network interface, no encryption at rest.
 
 This guide was built the hard way — through real deployment, real errors, and real fixes — so you don't have to repeat them.
+
+> **Transparency:** OpenClaw is evolving quickly. This repo is honest about what I actually used during setup, while pointing readers to the current official docs for anything version-sensitive. Where the two differ, both are shown and clearly labelled.
 
 ---
 
@@ -33,10 +35,10 @@ This guide was built the hard way — through real deployment, real errors, and 
 
 | Section | What You Get |
 |---|---|
-| [Full Setup Guide](docs/security.md) | End-to-end walkthrough from WSL2 to production |
+| [Full Setup Guide](docs/security.md) | End-to-end walkthrough from WSL2 to a hardened personal deployment |
 | [Network Isolation](docs/security.md#part-7--physical-network-isolation) | Dedicated router setup for experiment network |
 | [Security Hardening](docs/security.md#part-3--security-configuration) | Every setting explained with threat context |
-| [DNS Hardening](docs/security.md#13-wsl2-dns-hardening--the-step-most-guides-skip) | The WSL2 DNS fix most guides skip entirely |
+| [DNS Hardening](docs/security.md#13-wsl2-dns-hardening--optional-but-recommended) | WSL2 DNS troubleshooting (optional, version-dependent) |
 | [Sandbox Isolation](docs/security.md#part-6--sandbox-mode-docker) | Docker-based tool execution with zero network |
 | [Credential Security](docs/security.md#part-4--credential-security) | File permissions, spend caps, rotation protocol |
 | [Health Monitoring](docs/security.md#part-9--health-monitoring) | External alerting via healthchecks.io |
@@ -54,12 +56,12 @@ Layer 1  — Network isolation          Dedicated router — agent can't reach h
 Layer 2  — Firewall (UFW)             Default deny all inbound at kernel level
 Layer 3  — Network binding             Gateway loopback-only — zero external surface
 Layer 4  — Authentication              64-char cryptographically random token
-Layer 5  — Channel allowlist           Telegram denyByDefault + owner ID only
-Layer 6  — Tool policy                 Allowlist — only permitted tools callable
+Layer 5  — Channel allowlist           DM pairing + owner ID only
+Layer 6  — Tool policy                 Allow/deny lists — only permitted tools callable
 Layer 7  — Sandbox isolation           Docker container — no host access, no network
-Layer 8  — DNS hardening               Static resolv.conf — no race condition, no MITM
+Layer 8  — DNS hardening               Static resolv.conf (WSL2-specific, if configured)
 Layer 9  — Credential hygiene          chmod 600, spend caps, rotation protocol
-Layer 10 — Supply chain                Verified, version-pinned skills only
+Layer 10 — Supply chain                Reviewed, version-tracked skills only
 ```
 
 ---
@@ -84,10 +86,10 @@ wsl --set-default-version 2
 
 # 2. Update Ubuntu
 sudo apt update && sudo apt upgrade -y
-sudo apt install -y curl wget git nano ufw
+sudo apt install -y curl wget git nano ufw dnsutils
 
 # 3. Install OpenClaw (review the script before running)
-curl -fsSL https://get.openclaw.ai -o install.sh
+curl -fsSL https://openclaw.ai/install.sh -o install.sh
 less install.sh
 bash install.sh
 source ~/.bashrc
@@ -148,14 +150,14 @@ grep -r "bot[0-9]" .          # Scan for Telegram token pattern
 
 | Component | Choice | Why |
 |---|---|---|
-| AI Model | Google Gemini 3.1 Flash | Fast inference, token-efficient, low cost |
+| AI Model | Google Gemini 3 Flash | Fast inference, token-efficient, low cost |
 | Agent Framework | OpenClaw | Self-hosted, extensible, Telegram-native |
 | Platform | WSL2 + Ubuntu | Full Linux kernel with Windows host isolation |
 | Sandbox | Docker | Kernel-level tool execution isolation |
 | Firewall | UFW | Defence-in-depth network layer |
 | Monitoring | healthchecks.io | External crash detection with 5-min alerting |
 
-> **Note on model choice:** This deployment started on Gemini 3.1 Pro but was switched to Gemini 3.1 Flash for faster inference and better token efficiency during extended use. Flash handles the personal agent workload comfortably at a fraction of the cost.
+> **Note on model choice:** This deployment started on Gemini Pro but was switched to Gemini 3 Flash for faster inference and better token efficiency during extended use. Flash handles the personal agent workload comfortably at a fraction of the cost.
 
 ---
 
@@ -182,7 +184,7 @@ Found a security gap? Better hardening technique? Real-world edge case?
 **Vishal Shah**
 Delivery Lead | Observability | Agentic AI | SRE | ServiceNow
 
-Built through real deployment. Every error in the troubleshooting section was real. Every fix was tested.
+Built through real deployment. Every error in the troubleshooting section was real. Every fix was tested. Where the product has evolved since, both the historical and current-docs paths are shown.
 
 ---
 

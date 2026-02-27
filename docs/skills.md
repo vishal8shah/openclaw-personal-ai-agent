@@ -6,55 +6,55 @@ nav_order: 3
 
 # Safe Skill Installation Guide
 
+> **Note:** The ClawHub CLI was originally distributed as `clawdhub` in earlier releases and has since been renamed to `clawhub`. This guide uses the current name. If you installed during the earlier period, both names should work.
+
 ## Before Installing Any Skill
 
-1. **Check verification status:**
+1. **Search and review before installing:**
    ```bash
-   clawdhub info SKILL_NAME
+   clawhub search "SKILL_NAME"
    ```
-   Look for `Verified: true` and `ClawHavoc: clean` in the output.
+   Check the skill page on [clawhub.ai](https://clawhub.ai) for community feedback, stars, and version history.
 
 2. **Review the skill's source** — check the linked repository for recent activity, open issues, and maintainer reputation.
 
-3. **Never install skills from unverified sources** — the ClawHavoc campaign demonstrated how easy it is to publish malicious skills.
+3. **Never install skills from unreviewed sources** — the ClawHavoc campaign demonstrated how easy it is to publish malicious skills.
+
+> **Note on CLI commands:** The current documented ClawHub commands are `search`, `install`, `update`, `list`, `publish`, and `sync`. See [docs.openclaw.ai/tools/clawhub](https://docs.openclaw.ai/tools/clawhub) for the full reference. Other commands may exist in some versions but are not in the current public docs.
 
 ## Recommended Skills
 
-| Skill | Purpose | Verified |
+| Skill | Purpose | Status |
 |---|---|---|
-| nano-pdf | Document analysis and PDF processing | ✅ |
-| playwright-mcp | Web automation and browsing | ✅ |
+| nano-pdf | Document analysis and PDF processing | Reviewed before install |
+| playwright-mcp | Web automation and browsing | Reviewed before install |
 
 ## Installing
 
 ```bash
-clawdhub install nano-pdf
-clawdhub install playwright-mcp
+clawhub install nano-pdf
+clawhub install playwright-mcp
 ```
 
-## Version Pinning
+## Version Tracking
 
-After installation, pin the exact version in your `openclaw.json`:
+ClawHub tracks installed skill versions in `.clawhub/lock.json` under your workspace directory. This lockfile records the exact version hash of each skill, ensuring reproducible installs.
 
 ```bash
-clawdhub list --installed    # Note version numbers
+# View installed skills
+clawhub list
 ```
 
-Update the `skills` section of your config with the exact versions. Never use `latest` — a compromised update would be auto-installed on next restart.
+Never rely on `latest` — a compromised update would be auto-installed. The lockfile ensures you upgrade consciously after reviewing changelogs.
 
 ## Updating Skills
 
 ```bash
-# Check for updates
-clawdhub outdated
+# Sync and check for updates
+clawhub sync
 
-# Review changelog before updating
-clawdhub info SKILL_NAME --changelog
-
-# Update specific skill
-clawdhub update SKILL_NAME
-
-# Re-pin the new version in openclaw.json
+# Update a specific skill
+clawhub update SKILL_NAME
 ```
 
 Always review the changelog before updating. Update one skill at a time and verify agent behaviour after each update.
