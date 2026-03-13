@@ -51,7 +51,11 @@ markdown_extensions:
       permalink: true
   - pymdownx.highlight:
       anchor_linenums: true
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.inlinehilite
   - pymdownx.details
   - pymdownx.tabbed:
@@ -65,6 +69,9 @@ extra:
     - icon: fontawesome/brands/github
       link: https://github.com/vishal8shah/openclaw-personal-ai-agent
       name: OpenClaw on GitHub
+
+extra_javascript:
+  - https://unpkg.com/mermaid@10/dist/mermaid.min.js
 
 plugins:
   - search
