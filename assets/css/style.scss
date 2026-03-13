@@ -1,0 +1,375 @@
+---
+---
+
+@import "{{ site.theme }}";
+
+// ============================================================
+// OPENCLAW PERSONAL AI AGENT — CUSTOM THEME
+// Palette: deep slate + teal accent + amber highlight
+// ============================================================
+
+:root {
+  --oc-bg:           #0d1117;
+  --oc-surface:      #161b22;
+  --oc-surface-2:    #1c2128;
+  --oc-border:       #30363d;
+  --oc-text:         #e6edf3;
+  --oc-text-muted:   #8b949e;
+  --oc-teal:         #2dd4bf;
+  --oc-teal-dim:     #134e4a;
+  --oc-teal-hover:   #5eead4;
+  --oc-amber:        #f59e0b;
+  --oc-red:          #f87171;
+  --oc-green:        #34d399;
+  --oc-blue:         #60a5fa;
+  --oc-purple:       #a78bfa;
+  --oc-radius:       8px;
+  --oc-radius-sm:    4px;
+  --oc-font-mono:    'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+}
+
+// ============================================================
+// BASE
+// ============================================================
+
+body {
+  background-color: var(--oc-bg);
+  color: var(--oc-text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+a {
+  color: var(--oc-teal);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+a:hover {
+  color: var(--oc-teal-hover);
+  text-decoration: underline;
+}
+
+hr {
+  border: none;
+  border-top: 1px solid var(--oc-border);
+  margin: 2rem 0;
+}
+
+// ============================================================
+// HEADER / NAV
+// ============================================================
+
+.page-header {
+  background: linear-gradient(135deg, #0d1117 0%, #0f2027 40%, #134e4a 100%);
+  border-bottom: 2px solid var(--oc-teal);
+  padding: 2rem 2rem 1.5rem;
+  text-align: center;
+
+  .project-name {
+    color: var(--oc-teal);
+    font-size: 1.6rem;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+    text-shadow: 0 0 20px rgba(45, 212, 191, 0.3);
+    margin-bottom: 0.25rem;
+  }
+
+  .project-tagline {
+    color: var(--oc-text-muted);
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+  }
+
+  // Nav links in header
+  a {
+    display: inline-block;
+    margin: 0.2rem 0.4rem;
+    padding: 0.35rem 0.9rem;
+    background: rgba(45, 212, 191, 0.08);
+    border: 1px solid rgba(45, 212, 191, 0.25);
+    border-radius: 20px;
+    color: var(--oc-teal);
+    font-size: 0.82rem;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: rgba(45, 212, 191, 0.18);
+      border-color: var(--oc-teal);
+      color: var(--oc-teal-hover);
+      text-decoration: none;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(45, 212, 191, 0.2);
+    }
+  }
+}
+
+// ============================================================
+// MAIN CONTENT WRAPPER
+// ============================================================
+
+.main-content {
+  background-color: var(--oc-bg);
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 2.5rem 2rem;
+
+  // ---- Headings ----
+  h1 {
+    color: var(--oc-teal);
+    font-size: 1.9rem;
+    font-weight: 700;
+    border-bottom: 2px solid var(--oc-teal-dim);
+    padding-bottom: 0.5rem;
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+  }
+
+  h2 {
+    color: var(--oc-text);
+    font-size: 1.3rem;
+    font-weight: 600;
+    border-bottom: 1px solid var(--oc-border);
+    padding-bottom: 0.35rem;
+    margin-top: 2.5rem;
+    margin-bottom: 1rem;
+  }
+
+  h3 {
+    color: var(--oc-teal);
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin-top: 1.8rem;
+    margin-bottom: 0.6rem;
+  }
+
+  h4 {
+    color: var(--oc-text-muted);
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 1.4rem;
+    margin-bottom: 0.5rem;
+  }
+
+  // ---- Paragraphs & lists ----
+  p, li {
+    color: var(--oc-text);
+  }
+
+  ul li::marker,
+  ol li::marker {
+    color: var(--oc-teal);
+  }
+
+  strong {
+    color: var(--oc-text);
+    font-weight: 600;
+  }
+
+  // ---- Blockquotes ----
+  blockquote {
+    background: var(--oc-surface);
+    border-left: 3px solid var(--oc-teal);
+    border-radius: 0 var(--oc-radius-sm) var(--oc-radius-sm) 0;
+    margin: 1.2rem 0;
+    padding: 0.8rem 1.2rem;
+    color: var(--oc-text-muted);
+
+    p { color: var(--oc-text-muted); margin: 0; }
+
+    strong { color: var(--oc-teal); }
+  }
+
+  // ---- Inline code ----
+  code {
+    background: var(--oc-surface-2);
+    border: 1px solid var(--oc-border);
+    border-radius: var(--oc-radius-sm);
+    color: var(--oc-amber);
+    font-family: var(--oc-font-mono);
+    font-size: 0.85em;
+    padding: 0.15em 0.4em;
+  }
+
+  // ---- Code blocks ----
+  pre {
+    background: var(--oc-surface) !important;
+    border: 1px solid var(--oc-border);
+    border-radius: var(--oc-radius);
+    overflow-x: auto;
+    padding: 1.1rem 1.3rem;
+    margin: 1rem 0 1.5rem;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.4);
+
+    code {
+      background: transparent;
+      border: none;
+      color: var(--oc-text);
+      font-size: 0.83rem;
+      padding: 0;
+      line-height: 1.65;
+    }
+  }
+
+  // ---- Tables ----
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.2rem 0 1.8rem;
+    font-size: 0.88rem;
+    border-radius: var(--oc-radius);
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+
+    thead tr {
+      background: var(--oc-teal-dim);
+    }
+
+    th {
+      color: var(--oc-teal);
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      padding: 0.65rem 1rem;
+      text-align: left;
+      text-transform: uppercase;
+      border: none;
+    }
+
+    td {
+      background: var(--oc-surface);
+      border-bottom: 1px solid var(--oc-border);
+      color: var(--oc-text);
+      padding: 0.6rem 1rem;
+      vertical-align: top;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr:hover td {
+      background: var(--oc-surface-2);
+    }
+  }
+
+  // ---- Homepage hero cards ("Start Here" links) ----
+  // Targets paragraphs that contain emoji + bold link pattern
+  p:has(a) strong + a,
+  p > strong > a {
+    color: var(--oc-teal);
+  }
+}
+
+// ============================================================
+// SYNTAX HIGHLIGHTING (Rouge / GitHub dark style)
+// ============================================================
+
+.highlight {
+  background: var(--oc-surface) !important;
+  border: 1px solid var(--oc-border);
+  border-radius: var(--oc-radius);
+
+  // Keywords
+  .k, .kd, .kn, .kp, .kr, .kt { color: #ff79c6; font-weight: 600; }
+  // Strings
+  .s, .s1, .s2, .si, .se      { color: #f1fa8c; }
+  // Comments
+  .c, .c1, .cm, .cs            { color: #6272a4; font-style: italic; }
+  // Numbers
+  .mi, .mf, .mh, .mo           { color: var(--oc-amber); }
+  // Functions / Names
+  .nf, .nc, .nb                { color: var(--oc-blue); }
+  // Variables / identifiers
+  .n, .na, .nx                 { color: var(--oc-text); }
+  // Operators
+  .o, .ow                      { color: var(--oc-teal); }
+  // Bash prompts / special
+  .gp                          { color: var(--oc-teal); font-weight: 700; }
+  // Added lines (diff)
+  .gi                          { color: var(--oc-green); }
+  // Deleted lines (diff)
+  .gd                          { color: var(--oc-red); }
+}
+
+// ============================================================
+// BADGE STRIP (homepage only — targets inline img badges)
+// ============================================================
+
+.main-content p img[src*="shields.io"] {
+  border-radius: var(--oc-radius-sm);
+  margin: 0 3px;
+  vertical-align: middle;
+  filter: brightness(0.95) saturate(1.1);
+}
+
+// ============================================================
+// FOOTER
+// ============================================================
+
+.site-footer {
+  background: var(--oc-surface);
+  border-top: 1px solid var(--oc-border);
+  color: var(--oc-text-muted);
+  font-size: 0.8rem;
+  padding: 1.2rem 2rem;
+  text-align: center;
+
+  a {
+    color: var(--oc-text-muted);
+    &:hover { color: var(--oc-teal); }
+  }
+}
+
+// ============================================================
+// SECURITY CHECKLIST — style the bare [ ] checkbox lines
+// ============================================================
+
+.main-content pre code {
+  // Highlight unchecked boxes
+  // (visual only — rendered as monospace text in code blocks)
+  .err { color: var(--oc-text); background: transparent; }
+}
+
+// ============================================================
+// LAYER ARCHITECTURE BLOCKS
+// Make the Layer 1–10 / Layer 1–5 preformatted blocks stand out
+// ============================================================
+
+.main-content pre:has(code) {
+  position: relative;
+}
+
+// ============================================================
+// RESPONSIVE
+// ============================================================
+
+@media (max-width: 680px) {
+  .page-header {
+    padding: 1.5rem 1rem 1rem;
+
+    .project-name { font-size: 1.25rem; }
+
+    a {
+      margin: 0.15rem 0.2rem;
+      padding: 0.3rem 0.7rem;
+      font-size: 0.78rem;
+    }
+  }
+
+  .main-content {
+    padding: 1.5rem 1rem;
+
+    h1 { font-size: 1.5rem; }
+    h2 { font-size: 1.15rem; }
+
+    pre { font-size: 0.78rem; }
+
+    table { font-size: 0.8rem; }
+  }
+}
