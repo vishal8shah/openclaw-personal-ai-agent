@@ -4,10 +4,11 @@ url: "https://vishal8shah.github.io"
 baseurl: "/openclaw-personal-ai-agent"
 
 # ---- Theme ----
-remote_theme: just-the-docs/just-the-docs@v0.10.1
+remote_theme: just-the-docs/just-the-docs@v0.8.2
 plugins:
   - jekyll-remote-theme
   - jekyll-seo-tag
+  - jekyll-include-cache
 
 # ---- just-the-docs settings ----
 color_scheme: openclaw
@@ -18,7 +19,6 @@ search:
   previews: 3
   preview_words_before: 5
   preview_words_after: 10
-  tokenizer_separator: /[\s/]+/
   rel_url: true
   button: false
 
@@ -29,7 +29,7 @@ aux_links:
 aux_links_new_tab: true
 
 # Footer
-footer_content: "Built through real deployment. Every error was real. Every fix was tested. &copy; Vishal Shah."
+footer_content: "Built through real deployment. Every error was real. Every fix was tested."
 
 # Back to top
 back_to_top: true
@@ -37,22 +37,6 @@ back_to_top_text: "↑ Top"
 
 # Heading anchors
 heading_anchors: true
-
-# Callouts
-callouts_level: loud
-callouts:
-  note:
-    title: Note
-    color: blue
-  warning:
-    title: Warning
-    color: yellow
-  important:
-    title: Important
-    color: red
-  tip:
-    title: Tip
-    color: green
 
 # ---- SEO ----
 author: "Vishal Shah"
