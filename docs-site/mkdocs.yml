@@ -1,0 +1,70 @@
+site_name: OpenClaw
+site_description: "Security-hardened, defence-in-depth deployment guide for self-hosted AI agents on WSL2 Ubuntu — with five-layer observability."
+site_url: https://vishal8shah.github.io/openclaw-personal-ai-agent/
+repo_url: https://github.com/vishal8shah/openclaw-personal-ai-agent
+repo_name: vishal8shah/openclaw-personal-ai-agent
+copyright: "Built through real deployment. Every error was real. Every fix was tested. &copy; 2026 Vishal Shah."
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      media: "(prefers-color-scheme: light)"
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      media: "(prefers-color-scheme: dark)"
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.instant
+    - navigation.footer
+    - navigation.tracking
+    - search.suggest
+    - search.highlight
+    - toc.follow
+    - content.code.copy
+    - content.tooltips
+
+nav:
+  - Home: index.md
+  - Security Guide: security.md
+  - Observability: observability.md
+  - Troubleshooting: troubleshooting.md
+  - Skills Guide: skills.md
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.inlinehilite
+  - pymdownx.details
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/vishal8shah/openclaw-personal-ai-agent
+      name: OpenClaw on GitHub
+
+plugins:
+  - search
