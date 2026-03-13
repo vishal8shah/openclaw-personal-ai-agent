@@ -8,19 +8,21 @@ nav_order: 1
 
 > **Self-hosted AI agent deployment with defence-in-depth hardening on WSL2 Ubuntu**
 >
-> **Tested against:** OpenClaw 2026.2.x | **Platform:** Windows WSL2 + Ubuntu | **Model:** Google Gemini 3 Flash
+> **Tested against:** OpenClaw 2026.3.x | **Platform:** Windows WSL2 + Ubuntu | **Model:** OpenAI Codex (GPT-5.4)
 
 ---
 
 ## About This Guide
 
-This guide documents a security-hardened deployment of OpenClaw — a self-hosted personal AI agent that runs on your own hardware, connects via Telegram, and executes tasks using AI models like Google Gemini.
+This guide documents a security-hardened deployment of OpenClaw — a self-hosted personal AI agent that runs on your own hardware, connects via Telegram, and executes tasks using AI models including OpenAI Codex.
 
 In early 2026, security researchers reported widespread publicly accessible OpenClaw instances running with default configurations — many with authentication bypassed, gateways exposed on every network interface, and no encryption at rest. The ClawHavoc campaign saw malicious skills published to ClawHub, and independent research found a notable percentage of ClawHub skills leaking credentials in plaintext.
 
 This guide was built the hard way — through real deployment, real errors, and real fixes — so you don't have to.
 
 > **Transparency note:** OpenClaw is evolving quickly. This guide is honest about two things: **what I actually used during my setup** (preserved for transparency), and **what the current official docs recommend** (which readers should follow). Where the two differ, both are shown and clearly labelled. For anything version-sensitive, always cross-reference the [official OpenClaw docs](https://docs.openclaw.ai).
+
+📊 **Once your agent is running and hardened, see the [Observability Guide](observability) to instrument it with a five-layer monitoring stack — host health, telemetry pipeline, runtime health, and cost/token economics.**
 
 ---
 
@@ -29,9 +31,11 @@ This guide was built the hard way — through real deployment, real errors, and 
 Before starting, gather the following:
 
 - Windows 10/11 machine (spare laptop is ideal — runs 24/7 at near-zero cost)
-- Google account (for Gemini API key via [Google AI Studio](https://aistudio.google.com))
+- ChatGPT Plus account (for OpenAI Codex / GPT-5.4 via OAuth — no separate API key required)
 - Telegram account (for bot creation via @BotFather)
 - Basic comfort with a Linux terminal
+
+> **Alternative model:** Any supported OpenAI API key or compatible provider works. GPT-5.4 via Codex OAuth is the current recommended path for ChatGPT Plus subscribers — it uses your existing subscription quota rather than billing per-token.
 
 ---
 
@@ -111,7 +115,7 @@ sudo apt install -y curl wget git nano ufw dnsutils
 
 ### 1.3 WSL2 DNS Hardening — Optional but Recommended
 
-> **Context:** This section documents troubleshooting I went through during my own WSL2 deployment. WSL2's DNS handling varies by Windows version, build, and network configuration. You may not need all of these steps — but if your agent starts dropping connections to Telegram or Gemini APIs, this section is where to look.
+> **Context:** This section documents troubleshooting I went through during my own WSL2 deployment. WSL2's DNS handling varies by Windows version, build, and network configuration. You may not need all of these steps — but if your agent starts dropping connections to Telegram or OpenAI APIs, this section is where to look.
 
 By default, WSL2 regenerates `/etc/resolv.conf` and `/etc/hosts` on every reboot. This can create two issues:
 
@@ -228,10 +232,11 @@ openclaw onboard --install-daemon
 ```
 
 The `--install-daemon` flag installs the gateway as a background service (systemd user unit on Linux/WSL2) so it starts automatically. During onboarding you will configure:
-- Your AI model provider (select Google / Gemini)
-- Your Gemini API key (get from [aistudio.google.com](https://aistudio.google.com) → Get API Key)
+- Your AI model provider — select **OpenAI Codex** and authenticate via ChatGPT Plus OAuth
 - Your Telegram bot token (get from @BotFather on Telegram → `/newbot`)
 - Your workspace directory
+
+> **Model note:** Codex OAuth uses your ChatGPT Plus subscription quota (5 hrs/day on Plus, 25 hrs/day on Pro) rather than billing per token. The active model is set to `openai-codex/gpt-5.4` in `openclaw.json` — this is the source of truth the gateway reads on every start.
 
 Verify it's running:
 
@@ -263,7 +268,7 @@ The config below follows the current [OpenClaw configuration reference](https://
   "agents": {
     "defaults": {
       "model": {
-        "primary": "google/gemini-3-flash-preview"
+        "primary": "openai-codex/gpt-5.4"
       },
       "workspace": "~/.openclaw/workspace",
       "sandbox": {
@@ -304,7 +309,7 @@ The config below follows the current [OpenClaw configuration reference](https://
 }
 ```
 
-> **What I tested vs. what's shown above:** My own deployment used an earlier config structure that included `agents.defaults.tools` (instead of top-level `tools`), tool names like `read_file`/`send_message`/`browse_web` (now `read`/`message`/`web_search`/`web_fetch`), model string without provider prefix (now `provider/model` format like `google/gemini-3-flash-preview`), `streaming: false` (instead of `"off"`), `allowFrom` without the `tg:` prefix, `gateway.mDNS.enabled: false` (instead of the env var approach), and a `denyByDefault` flag that no longer appears in current docs. The config above has been updated to match the current documented schema. If you're running an older version, your working config may look different — both patterns may work, but the current docs are the safer reference.
+> **What I tested vs. what's shown above:** My own deployment used an earlier config structure that included `agents.defaults.tools` (instead of top-level `tools`), tool names like `read_file`/`send_message`/`browse_web` (now `read`/`message`/`web_search`/`web_fetch`), `streaming: false` (instead of `"off"`), `allowFrom` without the `tg:` prefix, `gateway.mDNS.enabled: false` (instead of the env var approach), and a `denyByDefault` flag that no longer appears in current docs. The config above has been updated to match the current documented schema. If you're running an older version, your working config may look different — both patterns may work, but the current docs are the safer reference.
 
 > **Disabling mDNS:** To prevent the gateway from broadcasting its presence on the local network, add `OPENCLAW_DISABLE_BONJOUR=1` to your environment (shown in [Part 4](#part-4--credential-security)). The official docs describe this as the supported method. In earlier versions, a `gateway.mDNS` config key was available — if your version supports it, `discovery.mdns.mode: "minimal"` reduces TXT record exposure while keeping basic device discovery.
 
@@ -347,7 +352,7 @@ openclaw doctor
 
 ### 4.1 File Permissions
 
-API keys are stored in agent-scoped auth profiles. The exact path depends on your agent ID — find yours with:
+API keys and OAuth tokens are stored in agent-scoped auth profiles. The exact path depends on your agent ID — find yours with:
 
 ```bash
 find ~/.openclaw -name "auth-profiles.json"
@@ -364,7 +369,7 @@ ls -la ~/.openclaw/openclaw.json
 # Should show: -rw------- (owner read/write only)
 ```
 
-**Why `chmod 600`:** Default file creation on Linux is 644 — world-readable. Your bot token and Gemini API key are sitting in those files. `chmod 600` means only your user account can read them. No other process, no accidental terminal output visible in logs, no world-readable credentials.
+**Why `chmod 600`:** Default file creation on Linux is 644 — world-readable. Your bot token and OAuth credentials are sitting in those files. `chmod 600` means only your user account can read them. No other process, no accidental terminal output visible in logs, no world-readable credentials.
 
 ### 4.2 Disable ClawHub Telemetry
 
@@ -380,22 +385,25 @@ source ~/.bashrc
 
 ### 4.3 API Spend Cap
 
-1. Go to [aistudio.google.com](https://aistudio.google.com)
-2. Navigate to your project → **Billing** → **Set budget alert**
-3. Set daily limit: AUD $2–5/day (sufficient for heavy personal use)
-4. Enable email alerts at 50% and 90% of limit
+For **Codex OAuth (ChatGPT Plus/Pro):** Your spend is bounded by your ChatGPT subscription quota (5 hrs/day on Plus, 25 hrs/day on Pro) rather than per-token billing. Monitor your quota at: ChatGPT web → Codex → Settings → Usage.
 
-**Why:** A runaway agent in an infinite loop can exhaust your API balance in under an hour without a cap. Gemini Flash is cheap per token — but thousands of accidental loop iterations are not. This is your financial circuit breaker.
+For **direct OpenAI API key users:** Set a spend cap at [platform.openai.com](https://platform.openai.com) → Billing → Usage limits. A daily limit of $5–10 USD is sufficient for heavy personal use.
+
+**Why:** A runaway agent in an infinite loop can exhaust your Codex quota or API balance in under an hour without a cap. This is your financial circuit breaker regardless of which auth method you use.
 
 ### 4.4 Key Rotation Protocol
 
-If your API key is ever visible in terminal output, a screenshot, a log file, or a chat message — rotate it immediately. Exposed API keys are typically exploited within minutes.
+If your token or API key is ever visible in terminal output, a screenshot, a log file, or a chat message — rotate it immediately. Exposed credentials are typically exploited within minutes.
 
 ```bash
-# Gemini: aistudio.google.com → API Keys → Delete old → Create new
-# Telegram: @BotFather → /revoke → regenerate token
+# For Codex OAuth: re-authenticate via openclaw onboard or the auth command
+openclaw auth --agent main
+
+# For direct API keys: rotate at platform.openai.com → API Keys
 # Then update auth-profiles.json with new values:
 find ~/.openclaw -name "auth-profiles.json" -exec nano {} \;
+
+# Telegram: @BotFather → /revoke → regenerate token
 ```
 
 ---
@@ -436,7 +444,7 @@ clawhub list
 clawhub update SKILL_NAME
 ```
 
-**Why version pinning matters:** If you always pull `latest`, a compromised update is automatically installed. The ClawHavoc campaign exploited this exact vector. The lockfile ensures you upgrade consciously, on your timeline, after reviewing the changelog. Use `clawhub update SKILL_NAME` to update individual skills after reviewing their changelogs.
+**Why version pinning matters:** If you always pull `latest`, a compromised update is automatically installed. The ClawHavoc campaign exploited this exact vector. The lockfile ensures you upgrade consciously, on your timeline, after reviewing the changelog.
 
 ---
 
@@ -502,7 +510,7 @@ Internet
          └── OpenClaw agent laptop ← isolated here
 ```
 
-The agent laptop connects to the internet through the spare router. It has full outbound connectivity (needed for Telegram API, Gemini API, system updates) but **cannot see or reach any device on your home network**. Your home network cannot see the agent laptop either. This is the same principle as a lab domain network at work — experiments stay contained.
+The agent laptop connects to the internet through the spare router. It has full outbound connectivity (needed for Telegram API, OpenAI Codex API, system updates) but **cannot see or reach any device on your home network**. Your home network cannot see the agent laptop either.
 
 ### 7.2 Setup
 
@@ -609,6 +617,8 @@ crontab -e
 
 If the agent crashes, healthchecks.io sends you an alert (email or Telegram) within 5 minutes.
 
+> 📊 **Want deeper visibility?** The [Observability Guide](observability) covers a full five-layer monitoring stack — host metrics, telemetry pipeline health, runtime queue depth and latency percentiles, and cost/token economics with Prometheus alert rules.
+
 ### 9.3 Gateway Service Management
 
 ```bash
@@ -684,8 +694,8 @@ AUTHENTICATION
 CREDENTIALS
 [ ] openclaw.json permissions: 600 (-rw-------)
 [ ] auth-profiles.json permissions: 600 (-rw-------)
-[ ] API spend cap set in Google AI Studio
-[ ] No API key ever committed to git
+[ ] API spend cap set (ChatGPT usage quota monitored OR platform.openai.com billing limit set)
+[ ] No API key or OAuth token ever committed to git
 [ ] CLAWHUB_DISABLE_TELEMETRY=1 in ~/.bashrc
 
 SKILLS & TOOLS
@@ -709,6 +719,7 @@ MONITORING
 [ ] Cron ping job running every 5 minutes
 [ ] GitHub security advisories subscribed
 [ ] Patch schedule: CVSS 7.0+ within 24h
+[ ] Observability stack deployed — see Observability Guide
 
 GIT / PUBLISHING
 [ ] .gitignore committed first, before any other files
@@ -789,6 +800,21 @@ sudo systemctl start docker
 sudo usermod -aG docker $USER  # Ensure docker group membership
 newgrp docker                  # Apply in current session
 # For permanent fix: log out and back in, or restart WSL2
+```
+
+### Codex quota exhausted
+
+```bash
+# Check remaining Codex quota
+# ChatGPT web → Codex → Settings → Usage
+
+# Restart gateway to clear any internal cooldown
+openclaw gateway stop
+sleep 5
+openclaw gateway start
+
+# Set a lighter fallback model for cron jobs to preserve quota
+openclaw models set openai-codex/gpt-5.4 --fallback openai-codex/gpt-4.1-mini
 ```
 
 ---
