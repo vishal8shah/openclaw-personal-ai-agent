@@ -13,44 +13,40 @@ This guide is a companion to the [Security Guide](security.md). The agent should
 Five independent signal paths all flow into Grafana. Each path solves a different observability problem — none of them overlap.
 
 ```mermaid
-flowchart LR
-    subgraph Host["🖥️ WSL2 Host"]
-        NE["Node Exporter\n:9100"]
-        OC["OpenClaw Gateway\n:18789"]
-        AL["Grafana Alloy\n:12345 / :4318"]
-        UE["usage_exporter.py\n:9479"]
+graph TD
+    classDef host fill:#0f172a,stroke:#334155,stroke-width:2px,color:#f8fafc;
+    classDef collector fill:#1e3a8a,stroke:#3b82f6,stroke-width:2px,color:#f8fafc;
+    classDef storage fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#f8fafc;
+    classDef viz fill:#4c1d95,stroke:#8b5cf6,stroke-width:2px,color:#f8fafc;
+
+    subgraph WSL2 ["WSL2 Host Environment"]
+        direction TB
+        subgraph Sources ["Telemetry Sources"]
+            NE("Node Exporter  \n:9100"):::host
+            UE("usage_exporter.py  \n:9479"):::host
+            OC("OpenClaw Gateway  \n:18789"):::host
+        end
+        AL("Grafana Alloy (OTel)  \n:12345 / :4318"):::collector
     end
 
-    subgraph Storage["🗄️ Storage"]
-        PR["Prometheus\n:9090"]
-        TE["Tempo\n:4317 / :3200"]
+    subgraph Backend ["Storage Layer"]
+        direction TB
+        PR[("Prometheus  \n:9090")]:::storage
+        TE[("Tempo  \n:4317 / :3200")]:::storage
     end
 
-    subgraph Viz["📊 Visualisation"]
-        GR["Grafana\n:3000"]
-    end
+    GR{"Grafana  \n:3000"}:::viz
 
-    NE -->|"scrape"| PR
-    AL -->|"scrape metrics"| PR
-    UE -->|"scrape usage RPCs"| PR
-    OC -->|"OTLP traces"| AL
-    AL -->|"forward traces"| TE
-    TE -->|"remote_write metrics"| PR
-    PR -->|"datasource"| GR
-    TE -->|"datasource"| GR
-
-    style Host fill:#1e3a5f,stroke:#4a9eff,color:#ffffff
-    style Storage fill:#1a3a2a,stroke:#4aff8a,color:#ffffff
-    style Viz fill:#3a1a3a,stroke:#ff4aff,color:#ffffff
+    NE -- "/metrics" --> PR
+    UE -- "/metrics" --> PR
+    AL -- "/metrics" --> PR
+    OC -- "OTLP Traces" --> AL
+    AL -- "gRPC :4317" --> TE
+    TE -- "remote_write" --> PR
+    PR -- "PromQL" --> GR
+    TE -- "TraceQL" --> GR
 ```
 
-style NE fill:#1e3a5f,stroke:#4a9eff,color:#ffffff
-style OC fill:#1e3a5f,stroke:#4a9eff,color:#ffffff
-style AL fill:#1e3a5f,stroke:#4a9eff,color:#ffffff
-style UE fill:#1e3a5f,stroke:#4a9eff,color:#ffffff
-style PR fill:#1a3a2a,stroke:#4aff8a,color:#ffffff
-style TE fill:#1a3a2a,stroke:#4aff8a,color:#ffffff
-style GR fill:#3a1a3a,stroke:#ff4aff,color:#ffffff
 !!! important
     Runtime telemetry and economics telemetry are not the same thing. OpenTelemetry signals give you pipeline health and trace flow. Cost and token data lives in OpenClaw's native usage RPCs. Neither replaces the other.
 
@@ -61,20 +57,23 @@ style GR fill:#3a1a3a,stroke:#ff4aff,color:#ffffff
 Each layer answers a different question. A failure at any layer is invisible to the layers below it.
 
 ```mermaid
-flowchart TB
-    L1["Layer 1 — WSL2 Host + Network Health\nNode Exporter → Prometheus → Grafana\n❓ Is the machine healthy?"]
-    L2["Layer 2 — Infra + AI Runtime Combined\nNode Exporter + OpenClaw → Prometheus → Grafana\n❓ Is the host healthy AND is the agent running?"]
-    L3["Layer 3 — Telemetry Pipeline Health\nAlloy + Tempo → Prometheus + Tempo → Grafana\n❓ Is the observability stack itself healthy?"]
-    L4["Layer 4 — Agent Runtime Observability\nOpenClaw metrics → Alloy → Prometheus → Grafana\n❓ Is the agent degraded? Queue depth? Stuck sessions?"]
-    L5["Layer 5 — Economics (Cost + Tokens)\nUsage RPCs → usage_exporter → Prometheus → Grafana + Alerts\n❓ How much is this costing? Is spend within bounds?"]
+graph BT
+    classDef l1 fill:#1e293b,stroke:#475569,stroke-width:2px,color:#cbd5e1;
+    classDef l2 fill:#334155,stroke:#64748b,stroke-width:2px,color:#f1f5f9;
+    classDef l3 fill:#1e3a8a,stroke:#3b82f6,stroke-width:2px,color:#eff6ff;
+    classDef l4 fill:#4338ca,stroke:#6366f1,stroke-width:2px,color:#e0e7ff;
+    classDef l5 fill:#0f766e,stroke:#14b8a6,stroke-width:2px,color:#ccfbf1;
 
-    L1 --> L2 --> L3 --> L4 --> L5
+    L5["Layer 5: Economics  \n(Usage Exporter to Prometheus)  \nCost & Tokens"]:::l5
+    L4["Layer 4: Agent Runtime  \n(OpenClaw to Alloy to Prometheus)  \nQueue Depth & Latency"]:::l4
+    L3["Layer 3: Telemetry Pipeline  \n(Alloy + Tempo)  \nExport Health & Backpressure"]:::l3
+    L2["Layer 2: AI Runtime  \n(Node + OpenClaw)  \nHost + Agent Status"]:::l2
+    L1["Layer 1: Infrastructure  \n(Node Exporter to Prometheus)  \nWSL2 Host CPU/Mem/Net"]:::l1
 
-    style L1 fill:#1e3a5f,stroke:#4a9eff,color:#ffffff
-    style L2 fill:#1e3a5f,stroke:#4a9eff,color:#ffffff
-    style L3 fill:#1a3a2a,stroke:#4aff8a,color:#ffffff
-    style L4 fill:#1a3a2a,stroke:#4aff8a,color:#ffffff
-    style L5 fill:#3a1f1a,stroke:#ff8a4a,color:#ffffff
+    L1 -->|Dictates| L2
+    L2 -->|Supports| L3
+    L3 -->|Monitors| L4
+    L4 -->|Drives| L5
 ```
 
 ### Key roles
@@ -112,8 +111,7 @@ This is what was wrong at the start — documenting it so you know what to verif
 Alloy logs showed repeated failures:
 
 ```
-Exporting failed
-dial tcp 127.0.0.1:4317: connect: connection refused
+Exporting failed dial tcp 127.0.0.1:4317: connect: connection refused
 Dropping data
 ```
 
@@ -138,8 +136,8 @@ sudo systemctl enable tempo
 sudo systemctl start tempo
 
 # Verify Tempo is listening
-ss -ltnp | grep ':4317'    # Should show tempo
-ss -ltnp | grep ':3200'    # Should show tempo
+ss -ltnp | grep ':4317'  # Should show tempo
+ss -ltnp | grep ':3200'  # Should show tempo
 
 # Check Tempo logs
 journalctl -u tempo --no-pager -n 40
@@ -258,7 +256,8 @@ curl -s http://localhost:9479/metrics | grep openclaw_usage | head -20
 
 ## Layer 1 — WSL2 Host + Network Health
 
-**Dashboard:** `wsl2-host-network-health.json`  
+**Dashboard:** `wsl2-host-network-health.json`
+
 **Purpose:** Infrastructure baseline. Eliminates the host as a suspect before investigating the agent stack.
 
 | Panel | Signal |
@@ -276,7 +275,8 @@ curl -s http://localhost:9479/metrics | grep openclaw_usage | head -20
 
 ## Layer 2 — Infra + AI Runtime Combined
 
-**Dashboard:** `infra-plus-aiops-dashboard.json`  
+**Dashboard:** `infra-plus-aiops-dashboard.json`
+
 **Purpose:** One view bridging machine health and agent activity. Fastest triage starting point.
 
 | Panel | Signal |
@@ -295,6 +295,7 @@ curl -s http://localhost:9479/metrics | grep openclaw_usage | head -20
 Two dashboards cover this layer.
 
 === "OTel Pipeline Health"
+
     **Dashboard:** `otel-pipeline-health.json`
 
     | Panel | Signal |
@@ -309,7 +310,9 @@ Two dashboards cover this layer.
     | Tempo Ingest Signals | distributor spans / receiver accepted / discarded |
 
 === "OpenClaw Observability Hero"
-    **Dashboard:** `openclaw-observability-hero.json`  
+
+    **Dashboard:** `openclaw-observability-hero.json`
+
     **Purpose:** Telemetry-pipeline-level observability for OpenClaw specifically — watching the watcher.
 
     | Panel | Signal |
@@ -321,14 +324,15 @@ Two dashboards cover this layer.
     | OTLP Receiver Latency | p50 / p95 / p99 |
     | Collector Resource Footprint | Alloy resident + virtual memory, host RX/TX |
 
-!!! warning
-    If the collector or export path is broken, your observability is an illusion. This dashboard is where you detect that.
+    !!! warning
+        If the collector or export path is broken, your observability is an illusion. This dashboard is where you detect that.
 
 ---
 
 ## Layer 4 — Agent Runtime Observability
 
-**Dashboard:** `openclaw-runtime-dashboard.json`  
+**Dashboard:** `openclaw-runtime-dashboard.json`
+
 **Purpose:** Operational health of the agent — not just "is it alive" but "is it healthy".
 
 | Panel | Signal |
@@ -350,48 +354,26 @@ Two dashboards cover this layer.
 ### Economics Pipeline
 
 ```mermaid
-flowchart LR
-    subgraph Source["📡 OpenClaw Usage RPCs"]
-        R1["sessions.usage"]
-        R2["usage.cost"]
-        R3["sessions.usage.timeseries"]
-        R4["sessions.usage.logs"]
+sequenceDiagram
+    participant OC as OpenClaw RPCs
+    participant UE as usage_exporter.py (:9479)
+    participant PR as Prometheus (:9090)
+    participant GR as Grafana / Alerts
+
+    loop Every 60s
+        UE->>OC: Poll sessions.usage & usage.cost
+        OC-->>UE: Raw Token & Cost JSON
     end
 
-    subgraph Exporter["⚙️ usage_exporter.py\n:9479"]
-        M1["openclaw_usage_range_totalCost"]
-        M2["openclaw_usage_range_totalTokens"]
-        M3["openclaw_session_total_cost_usd"]
-        M4["openclaw_usage_model_totalCost"]
-        M5["openclaw_usage_channel_totalCost"]
+    Note over UE,PR: Translates JSON to Prom format
+
+    loop Every 15s (scrape_interval)
+        PR->>UE: GET /metrics
+        UE-->>PR: openclaw_usage_range_totalCost  <br/>openclaw_usage_range_totalTokens
     end
 
-    subgraph Outputs["📊 Outputs"]
-        PR["Prometheus\n:9090"]
-        GR["Grafana Dashboard\nopenclaw-usage-cost-v3"]
-        AL["5 Alert Rules"]
-    end
-
-    Source -->|"HTTP RPC poll\nevery 60s"| Exporter
-    Exporter -->|"/metrics scrape"| PR
-    PR --> GR
-    PR --> AL
-
-    style Source fill:#1e3a5f,stroke:#4a9eff,color:#ffffff
-    style Exporter fill:#1a3a2a,stroke:#4aff8a,color:#ffffff
-    style Outputs fill:#3a1f1a,stroke:#ff8a4a,color:#ffffff
-style R1 fill:#1e3a5f,stroke:#4a9eff,color:#ffffff
-style R2 fill:#1e3a5f,stroke:#4a9eff,color:#ffffff
-style R3 fill:#1e3a5f,stroke:#4a9eff,color:#ffffff
-style R4 fill:#1e3a5f,stroke:#4a9eff,color:#ffffff
-style M1 fill:#1a3a2a,stroke:#4aff8a,color:#ffffff
-style M2 fill:#1a3a2a,stroke:#4aff8a,color:#ffffff
-style M3 fill:#1a3a2a,stroke:#4aff8a,color:#ffffff
-style M4 fill:#1a3a2a,stroke:#4aff8a,color:#ffffff
-style M5 fill:#1a3a2a,stroke:#4aff8a,color:#ffffff
-style PR fill:#3a1f1a,stroke:#ff8a4a,color:#ffffff
-style GR fill:#3a1f1a,stroke:#ff8a4a,color:#ffffff
-style AL fill:#3a1f1a,stroke:#ff8a4a,color:#ffffff
+    PR->>GR: PromQL Evaluation
+    Note over GR: Updates openclaw-usage-cost-v3  <br/>Triggers 5 Alert Rules
 ```
 
 ### Key metrics
