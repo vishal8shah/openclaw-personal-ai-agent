@@ -4,20 +4,24 @@ Five-layer monitoring stack covering host health, telemetry pipeline, agent runt
 
 This guide is a companion to the [Security Guide](security.md). The agent should be hardened before instrumenting it.
 
+**Environment tested on:** WSL2 · Ubuntu 24.04.4 LTS · Grafana 12.4.1 · Alloy 1.14.0 · Tempo 2.10.1
+
 ---
 
-## Why observability matters for a personal AI agent
+## Architecture
 
-Infrastructure health tells you the machine is alive. It does not tell you whether your agent is healthy, how much it is spending, or which sessions are driving cost.
-
-This guide separates those concerns into five distinct layers — each with its own data source, dashboard, and purpose.
+```
+WSL2 Host Metrics     → Node Exporter      → Prometheus → Grafana
+OpenClaw Metrics      → Alloy metrics      → Prometheus → Grafana
+OTel / Trace Signals  → Alloy              → Tempo      → Grafana Explore
+Tempo Metrics Gen     → Tempo remote_write → Prometheus
+OpenClaw Usage RPCs   → usage_exporter     → Prometheus → Grafana
+```
 
 !!! important
     Runtime telemetry and economics telemetry are not the same thing. OpenTelemetry signals give you pipeline health and trace flow. Cost and token data lives in OpenClaw’s native usage RPCs. Neither replaces the other.
 
----
-
-## Stack Components
+### Key roles
 
 | Component | Role |
 |:----------|:-----|
@@ -28,14 +32,170 @@ This guide separates those concerns into five distinct layers — each with its 
 | **Grafana** | Visualisation — all dashboards live here |
 | **usage_exporter.py** | Custom exporter — pulls OpenClaw usage RPCs, exposes on `:9479` |
 
-### Target architecture
+### Ports
+
+| Port | Service |
+|:-----|:--------|
+| 3000 | Grafana |
+| 9090 | Prometheus |
+| 9100 | Node Exporter |
+| 4317 | Tempo gRPC (OTLP) |
+| 4318 | OTLP HTTP receiver |
+| 3200 | Tempo HTTP |
+| 12345 | OpenClaw / Alloy metrics endpoint |
+| 9479 | usage_exporter.py |
+
+---
+
+## Baseline Issues Found
+
+This is what was wrong at the start — documenting it so you know what to verify on a fresh setup.
+
+### A. Tempo missing
+
+Alloy logs showed repeated failures:
 
 ```
-WSL2 Host Metrics     → Node Exporter      → Prometheus → Grafana
-OpenClaw Metrics      → Alloy metrics      → Prometheus → Grafana
-OTel / Trace Signals  → Alloy              → Tempo      → Grafana Explore
-Tempo Metrics Gen     → Tempo remote_write → Prometheus
-OpenClaw Usage RPCs   → usage_exporter     → Prometheus → Grafana
+Exporting failed
+dial tcp 127.0.0.1:4317: connect: connection refused
+Dropping data
+```
+
+Tempo was not installed. Alloy was trying to export traces to it and silently dropping everything.
+
+### B. Prometheus underconfigured
+
+Prometheus was only scraping itself and OpenClaw (`localhost:12345`). It was **not scraping Node Exporter** even though `node_exporter` was running on `:9100`.
+
+### C. Grafana provisioning minimal
+
+Only sample provisioning files existed. Grafana had no meaningful dashboards or datasources configured as code.
+
+---
+
+## Fix 1 — Install and wire Tempo
+
+```bash
+# Install Tempo
+sudo apt install -y tempo
+sudo systemctl enable tempo
+sudo systemctl start tempo
+
+# Verify Tempo is listening
+ss -ltnp | grep ':4317'    # Should show tempo
+ss -ltnp | grep ':3200'    # Should show tempo
+
+# Check Tempo logs
+journalctl -u tempo --no-pager -n 40
+```
+
+After install, Tempo logs should show:
+
+```
+gRPC server listening on :4317
+HTTP server listening on :3200
+```
+
+---
+
+## Fix 2 — Tempo `remote_write` hostname
+
+Tempo’s default config uses a Docker-style hostname that breaks on bare WSL2.
+
+```bash
+sudo nano /etc/tempo/config.yml
+```
+
+Find and fix:
+
+```yaml
+# WRONG — Docker hostname, breaks on WSL2
+remote_write:
+  - url: http://prometheus:9090/api/v1/write
+
+# CORRECT
+remote_write:
+  - url: http://localhost:9090/api/v1/write
+```
+
+```bash
+sudo systemctl restart tempo
+journalctl -u tempo --no-pager -n 20
+# Should no longer show: lookup prometheus / no such host
+```
+
+---
+
+## Fix 3 — Prometheus scrape config
+
+Add Node Exporter and the usage exporter to Prometheus:
+
+```bash
+sudo nano /etc/prometheus/prometheus.yml
+```
+
+```yaml
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'openclaw'
+    static_configs:
+      - targets: ['localhost:12345']
+
+  - job_name: 'node'
+    static_configs:
+      - targets: ['localhost:9100']
+
+  - job_name: 'openclaw_usage'
+    static_configs:
+      - targets: ['localhost:9479']
+```
+
+Always validate before restarting:
+
+```bash
+promtool check config /etc/prometheus/prometheus.yml
+sudo systemctl restart prometheus
+
+# Verify all targets are up
+curl -s http://127.0.0.1:9090/api/v1/targets | python3 -m json.tool | grep -A2 '"health"'
+```
+
+All four jobs should show `"health": "up"`.
+
+!!! warning
+    Never use `sudo printf ... > /etc/prometheus/prometheus.yml`. The `>` redirect runs as your non-sudo shell and will fail with permission denied or silently truncate the file. Always use `| sudo tee` or edit directly with `sudo nano`.
+
+---
+
+## Fix 4 — Add Tempo datasource to Grafana
+
+1. Grafana UI → **Connections → Data Sources → Add data source**
+2. Select **Tempo**
+3. URL: `http://localhost:3200`
+4. **Save & Test** — should show green
+
+Prometheus datasource (`http://localhost:9090`) should already exist.
+
+---
+
+## Fix 5 — Start usage_exporter.py
+
+The `usage_exporter.py` script pulls OpenClaw’s native usage RPCs and exposes them as Prometheus metrics on `:9479`.
+
+```bash
+# Run in background
+nohup python3 /path/to/usage_exporter.py &
+
+# Verify it's healthy
+curl http://localhost:9479/healthz
+curl -s http://localhost:9479/metrics | grep openclaw_usage | head -20
 ```
 
 ---
@@ -61,7 +221,7 @@ OpenClaw Usage RPCs   → usage_exporter     → Prometheus → Grafana
 ## Layer 2 — Infra + AI Runtime Combined
 
 **Dashboard:** `infra-plus-aiops-dashboard.json`  
-**Purpose:** One view bridging machine health and agent activity. The fastest triage starting point.
+**Purpose:** One view bridging machine health and agent activity. Fastest triage starting point.
 
 | Panel | Signal |
 |:------|:-------|
@@ -113,7 +273,7 @@ Two dashboards cover this layer.
 ## Layer 4 — Agent Runtime Observability
 
 **Dashboard:** `openclaw-runtime-dashboard.json`  
-**Purpose:** Operational health of the agent itself — not just “is it alive” but “is it healthy”.
+**Purpose:** Operational health of the agent — not just “is it alive” but “is it healthy”.
 
 | Panel | Signal |
 |:------|:-------|
@@ -165,6 +325,40 @@ OpenClaw usage RPCs  →  usage_exporter.py (:9479)  →  Prometheus  →  Grafa
 
 ---
 
+## OpenClaw Usage UI
+
+Before building Grafana panels for token/cost data, check the native OpenClaw UI first:
+
+```
+http://127.0.0.1:18789/usage
+```
+
+The control UI exposes these usage RPC methods natively:
+
+- `sessions.usage` — per-session token/cost breakdown
+- `usage.cost` — total cost by period
+- `sessions.usage.timeseries` — usage over time
+- `sessions.usage.logs` — per-turn logs with model/token/cost detail
+
+!!! tip
+    For a showcase, use the **OpenClaw Usage UI** for native token/cost/session/model screenshots and **Grafana** for host + pipeline + traces. This is more truthful than building Grafana panels for data that already has a better native view.
+
+---
+
+## Dashboard Import Guide
+
+Grafana provisioning-as-code is fragile to set up initially. The pragmatic path:
+
+1. Grafana UI → **Dashboards → Import**
+2. Paste the JSON content from the dashboard files in this repo
+3. Select the correct datasource (Prometheus or Tempo) when prompted
+4. Repeat for each of the 8 dashboards
+
+!!! note
+    Build dashboards only against metrics confirmed to exist. Early dashboards built with assumed metric names produced empty panels and nonsense values. Always run `curl -s http://127.0.0.1:12345/metrics` to inventory real metrics first.
+
+---
+
 ## Troubleshooting
 
 ### Tempo native histogram mismatch
@@ -179,28 +373,82 @@ OpenClaw usage RPCs  →  usage_exporter.py (:9479)  →  Prometheus  →  Grafa
 
 1. `curl http://localhost:9479/healthz` — is the exporter running?
 2. Is the scrape job in `prometheus.yml`?
-3. Did you run `promtool check config` and restart?
+3. Run `promtool check config` and restart
+
+### Alloy exporter backpressure
+
+```bash
+journalctl -u alloy --no-pager -n 60
+```
+
+Look for `send_failed` or `queue_size` growing. Usually means Tempo is down or unhealthy.
 
 ### YAML indentation corruption
 
-**Rule:** Always run `promtool check config` before restarting. Use `sudo tee` not `sudo >` for privileged writes.
+Always run `promtool check config` before restarting. Use `sudo tee` not `sudo >` for privileged writes.
 
 ### Grafana provisioning fails / panels blank
 
-**Practical path:** Import dashboard JSON manually via Grafana UI → Dashboards → Import.
+Import dashboard JSON manually via Grafana UI → Dashboards → Import.
+
+---
+
+## Useful Commands
+
+```bash
+# Prometheus targets
+curl -s http://127.0.0.1:9090/api/v1/targets
+
+# Alloy logs
+journalctl -u alloy --no-pager -n 60
+
+# Tempo logs
+journalctl -u tempo --no-pager -n 80
+
+# Tempo config
+sudo sed -n '1,120p' /etc/tempo/config.yml
+
+# Validate Prometheus config
+promtool check config /etc/prometheus/prometheus.yml
+
+# OpenClaw / Alloy metrics
+curl -s http://127.0.0.1:12345/metrics
+
+# Node exporter metrics
+curl -s http://127.0.0.1:9100/metrics
+
+# Tempo metrics
+curl -s http://127.0.0.1:3200/metrics
+
+# Usage exporter health
+curl http://localhost:9479/healthz
+```
+
+---
+
+## Key Lessons
+
+1. **Installed ≠ wired** — Tempo was installed but Alloy silently dropped traces until it was properly connected
+2. **Open port ≠ healthy pipeline** — trace the full signal path end-to-end
+3. **Validate config before restart** — `promtool check config` every time
+4. **Docker hostnames break outside Docker** — Tempo’s default `http://prometheus:9090` DNS fails on bare WSL2
+5. **Inventory real metrics first** — build dashboards against confirmed metrics, not assumed ones
+6. **Don’t fake what already exists** — if OpenClaw Usage UI already shows token/cost data natively, use it
 
 ---
 
 ## Operational Checklist
 
+- [ ] Tempo installed and listening on `:4317` and `:3200`
+- [ ] Tempo `remote_write` URL uses `localhost` not `prometheus`
 - [ ] `usage_exporter.py` running on `:9479`
-- [ ] Prometheus scraping `openclaw_usage` job (`up = 1`)
+- [ ] Prometheus scraping all 4 jobs (`up = 1`): `prometheus`, `openclaw`, `node`, `openclaw_usage`
 - [ ] All 5 alert rules loaded and evaluating
 - [ ] All 8 dashboard JSONs imported into Grafana
-- [ ] Tempo `/ready` returning 200
+- [ ] Tempo datasource added (`http://localhost:3200`) and tested green
 - [ ] Alloy config loaded successfully
 - [ ] No persistent exporter backpressure errors in Alloy logs
-- [ ] Alert thresholds calibrated
+- [ ] Alert thresholds calibrated against real traffic
 
 ---
 
