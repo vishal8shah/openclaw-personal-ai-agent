@@ -17,16 +17,19 @@ Version-pinned, reviewed-before-install. The ClawHavoc campaign showed why this 
 
 2. **Review the skill’s source** — check the linked repository for recent activity, open issues, and maintainer reputation.
 
-3. **Never install from unreviewed sources** — the ClawHavoc campaign demonstrated how easy it is to publish malicious skills.
+3. **Never install skills from unreviewed sources** — the ClawHavoc campaign demonstrated how easy it is to publish malicious skills.
+
+!!! note
+    Current documented commands are `search`, `install`, `update`, `list`, `publish`, and `sync`. See [docs.openclaw.ai/tools/clawhub](https://docs.openclaw.ai/tools/clawhub) for the full reference.
 
 ---
 
 ## Recommended Skills
 
-| Skill | Purpose |
-|:------|:--------|
-| nano-pdf | Document analysis and PDF processing |
-| playwright-mcp | Web automation and browsing |
+| Skill | Purpose | Status |
+|:------|:--------|:-------|
+| nano-pdf | Document analysis and PDF processing | Reviewed before install |
+| playwright-mcp | Web automation and browsing | Reviewed before install |
 
 ---
 
@@ -41,11 +44,13 @@ clawhub install playwright-mcp
 
 ## Version Tracking
 
-ClawHub tracks installed skill versions in `.clawhub/lock.json`. Never rely on `latest` — a compromised update would be auto-installed.
+ClawHub tracks installed skill versions in `.clawhub/lock.json`. This lockfile records the exact version hash of each skill.
 
 ```bash
 clawhub list
 ```
+
+Never rely on `latest` — a compromised update would be auto-installed. The lockfile ensures you upgrade consciously.
 
 ---
 
@@ -60,3 +65,11 @@ Always review the changelog before updating. Update one skill at a time and veri
 
 !!! warning
     `clawhub sync` publishes local skills to the registry — it is a publish/backup workflow, not an update mechanism.
+
+---
+
+## Related Guides
+
+- [Security Guide](security.md) — full hardening walkthrough including skill security (Part 5)
+- [Observability Guide](observability.md) — monitor agent health and cost after adding skills
+- [Troubleshooting](troubleshooting.md) — Docker, gateway, and Codex quota fixes

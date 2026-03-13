@@ -40,6 +40,8 @@ openclaw doctor
 !!! warning
     Do not use `python3 -m json.tool` for config validation. OpenClaw config is JSON5 (supports comments and trailing commas), which strict JSON parsers will reject.
 
+**Common cause:** Trailing comma or misplaced key after manual edit. Use `openclaw config set` for individual changes.
+
 ---
 
 ## Gateway not starting
@@ -85,6 +87,9 @@ openclaw gateway stop
 sleep 5
 openclaw gateway start
 
+cat ~/.openclaw/openclaw.json | grep -A3 '"model"'
+# Should show: "primary": "openai-codex/gpt-5.4"
+
 openclaw models set openai-codex/gpt-5.4 --fallback openai-codex/gpt-4.1-mini
 ```
 
@@ -117,3 +122,11 @@ curl -fsS https://hc-ping.com/YOUR_UUID
 crontab -l
 openclaw health --json
 ```
+
+---
+
+## Related Guides
+
+- [Security Guide](security.md) — hardening, config reference, security checklist
+- [Observability Guide](observability.md) — Prometheus, Grafana, Tempo, cost monitoring
+- [Skills Guide](skills.md) — safe skill installation and version pinning

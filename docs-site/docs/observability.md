@@ -1,4 +1,4 @@
-# Observability — Five-Layer Monitoring
+# Observability — Monitoring Your OpenClaw Agent
 
 Five-layer monitoring stack covering host health, telemetry pipeline, agent runtime, and cost economics.
 
@@ -42,7 +42,8 @@ OpenClaw Usage RPCs   → usage_exporter     → Prometheus → Grafana
 
 ## Layer 1 — WSL2 Host + Network Health
 
-**Dashboard:** `wsl2-host-network-health.json`
+**Dashboard:** `wsl2-host-network-health.json`  
+**Purpose:** Infrastructure baseline. Eliminates the host as a suspect before investigating the agent stack.
 
 | Panel | Signal |
 |:------|:-------|
@@ -59,19 +60,23 @@ OpenClaw Usage RPCs   → usage_exporter     → Prometheus → Grafana
 
 ## Layer 2 — Infra + AI Runtime Combined
 
-**Dashboard:** `infra-plus-aiops-dashboard.json`
+**Dashboard:** `infra-plus-aiops-dashboard.json`  
+**Purpose:** One view bridging machine health and agent activity. The fastest triage starting point.
 
 | Panel | Signal |
 |:------|:-------|
 | Host CPU / Memory / Disk | node_exporter fundamentals |
 | Failed Targets | `sum(up{job=~"prometheus|openclaw|node"} == 0)` |
 | Network Throughput | Host RX/TX |
+| Host Uptime | `node_time_seconds - node_boot_time_seconds` |
 | OpenClaw Throughput | `claw_messages_processed_total` |
 | AI Runtime Pressure | `claw_queue_depth`, `claw_session_stuck_total` |
 
 ---
 
 ## Layer 3 — Telemetry Pipeline Health
+
+Two dashboards cover this layer.
 
 === "OTel Pipeline Health"
     **Dashboard:** `otel-pipeline-health.json`
@@ -80,26 +85,35 @@ OpenClaw Usage RPCs   → usage_exporter     → Prometheus → Grafana
     |:------|:-------|
     | Alloy Config Healthy | `alloy_config_last_load_successful` |
     | Healthy Alloy Components | `alloy_component_controller_running_components` |
+    | Alloy Eval Queue | `alloy_component_evaluation_queue_size` |
     | Accepted Spans/sec | `rate(otelcol_receiver_accepted_spans_total[5m])` |
     | OTLP Receiver Span Flow | accepted / refused / failed spans |
     | Exporter Health & Backpressure | sent / send failed / queue size |
+    | Telemetry Process Memory | Alloy + Tempo resident memory |
+    | Tempo Ingest Signals | distributor spans / receiver accepted / discarded |
 
-=== "OpenClaw Hero Dashboard"
-    **Dashboard:** `openclaw-observability-hero.json`
+=== "OpenClaw Observability Hero"
+    **Dashboard:** `openclaw-observability-hero.json`  
+    **Purpose:** Telemetry-pipeline-level observability for OpenClaw specifically — watching the watcher.
 
     | Panel | Signal |
     |:------|:-------|
     | Telemetry Config Healthy | Alloy config load success |
+    | Alloy Evaluation Queue | Queue depth |
     | Accepted / Sent Spans/sec | Receiver + exporter throughput |
-    | OTLP HTTP Requests by Status | by status code |
+    | OTLP HTTP Requests by Status | `http_server_request_duration_seconds` by status code |
     | OTLP Receiver Latency | p50 / p95 / p99 |
-    | Collector Resource Footprint | Alloy resident + virtual memory |
+    | Collector Resource Footprint | Alloy resident + virtual memory, host RX/TX |
+
+!!! warning
+    If the collector or export path is broken, your observability is an illusion. This dashboard is where you detect that.
 
 ---
 
-## Layer 4 — Agent Runtime
+## Layer 4 — Agent Runtime Observability
 
-**Dashboard:** `openclaw-runtime-dashboard.json`
+**Dashboard:** `openclaw-runtime-dashboard.json`  
+**Purpose:** Operational health of the agent itself — not just “is it alive” but “is it healthy”.
 
 | Panel | Signal |
 |:------|:-------|
@@ -107,6 +121,7 @@ OpenClaw Usage RPCs   → usage_exporter     → Prometheus → Grafana
 | Queue Depth | `claw_queue_depth` |
 | Messages/sec (5m) | `rate(claw_messages_processed_total[5m])` |
 | Queue Wait p95 | 95th percentile queue wait time |
+| Message Throughput by Kind | Split by message kind |
 | Queue Wait Quantiles | p50 / p95 / p99 — `claw_queue_wait_seconds` |
 
 !!! tip
@@ -119,9 +134,9 @@ OpenClaw Usage RPCs   → usage_exporter     → Prometheus → Grafana
 ### Architecture
 
 ```
-OpenClaw usage RPCs  →  usage_exporter.py (:9479)  →  Prometheus  →  Grafana
-                                                                   ↓
-                                                           Alert rules (5 rules)
+OpenClaw usage RPCs  →  usage_exporter.py (:9479)  →  Prometheus  →  Grafana v3 dashboard
+                                                                    ↓
+                                                            Alert rules (5 rules)
 ```
 
 ### Key metrics
@@ -131,6 +146,7 @@ OpenClaw usage RPCs  →  usage_exporter.py (:9479)  →  Prometheus  →  Grafa
 | `openclaw_usage_range_totalCost` | Total cost for the day (USD) |
 | `openclaw_usage_range_totalTokens` | Total tokens for the day |
 | `openclaw_session_total_cost_usd` | Per-session total cost |
+| `openclaw_session_total_tokens` | Per-session total tokens |
 | `openclaw_usage_model_totalCost` | Cost split by model |
 | `openclaw_usage_channel_totalCost` | Cost split by channel |
 
@@ -149,6 +165,32 @@ OpenClaw usage RPCs  →  usage_exporter.py (:9479)  →  Prometheus  →  Grafa
 
 ---
 
+## Troubleshooting
+
+### Tempo native histogram mismatch
+
+**Symptom:** Tempo logs show `native histograms are disabled`.
+
+**Fix:** Set `generate_native_histograms: none` in `/etc/tempo/config.yml`. Restart Tempo.
+
+### Prometheus not scraping usage exporter
+
+**Symptom:** `up{job="openclaw_usage"}` returns empty or 0.
+
+1. `curl http://localhost:9479/healthz` — is the exporter running?
+2. Is the scrape job in `prometheus.yml`?
+3. Did you run `promtool check config` and restart?
+
+### YAML indentation corruption
+
+**Rule:** Always run `promtool check config` before restarting. Use `sudo tee` not `sudo >` for privileged writes.
+
+### Grafana provisioning fails / panels blank
+
+**Practical path:** Import dashboard JSON manually via Grafana UI → Dashboards → Import.
+
+---
+
 ## Operational Checklist
 
 - [ ] `usage_exporter.py` running on `:9479`
@@ -157,4 +199,13 @@ OpenClaw usage RPCs  →  usage_exporter.py (:9479)  →  Prometheus  →  Grafa
 - [ ] All 8 dashboard JSONs imported into Grafana
 - [ ] Tempo `/ready` returning 200
 - [ ] Alloy config loaded successfully
+- [ ] No persistent exporter backpressure errors in Alloy logs
 - [ ] Alert thresholds calibrated
+
+---
+
+## Related Guides
+
+- [Security Guide](security.md) — harden the agent before instrumenting it
+- [Troubleshooting](troubleshooting.md) — OpenClaw errors, DNS, Docker, Codex quota
+- [Skills Guide](skills.md) — safe skill installation
