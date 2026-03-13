@@ -10,16 +10,65 @@ This guide is a companion to the [Security Guide](security.md). The agent should
 
 ## Architecture
 
-```
-WSL2 Host Metrics     → Node Exporter      → Prometheus → Grafana
-OpenClaw Metrics      → Alloy metrics      → Prometheus → Grafana
-OTel / Trace Signals  → Alloy              → Tempo      → Grafana Explore
-Tempo Metrics Gen     → Tempo remote_write → Prometheus
-OpenClaw Usage RPCs   → usage_exporter     → Prometheus → Grafana
+Five independent signal paths all flow into Grafana. Each path solves a different observability problem — none of them overlap.
+
+```mermaid
+flowchart LR
+    subgraph Host["🖥️ WSL2 Host"]
+        NE["Node Exporter\n:9100"]
+        OC["OpenClaw Gateway\n:18789"]
+        AL["Grafana Alloy\n:12345 / :4318"]
+        UE["usage_exporter.py\n:9479"]
+    end
+
+    subgraph Storage["🗄️ Storage"]
+        PR["Prometheus\n:9090"]
+        TE["Tempo\n:4317 / :3200"]
+    end
+
+    subgraph Viz["📊 Visualisation"]
+        GR["Grafana\n:3000"]
+    end
+
+    NE -->|"scrape"| PR
+    AL -->|"scrape metrics"| PR
+    UE -->|"scrape usage RPCs"| PR
+    OC -->|"OTLP traces"| AL
+    AL -->|"forward traces"| TE
+    TE -->|"remote_write metrics"| PR
+    PR -->|"datasource"| GR
+    TE -->|"datasource"| GR
+
+    style Host fill:#1e3a5f,stroke:#4a9eff,color:#ffffff
+    style Storage fill:#1a3a2a,stroke:#4aff8a,color:#ffffff
+    style Viz fill:#3a1a3a,stroke:#ff4aff,color:#ffffff
 ```
 
 !!! important
-    Runtime telemetry and economics telemetry are not the same thing. OpenTelemetry signals give you pipeline health and trace flow. Cost and token data lives in OpenClaw’s native usage RPCs. Neither replaces the other.
+    Runtime telemetry and economics telemetry are not the same thing. OpenTelemetry signals give you pipeline health and trace flow. Cost and token data lives in OpenClaw's native usage RPCs. Neither replaces the other.
+
+---
+
+## Five-Layer Stack
+
+Each layer answers a different question. A failure at any layer is invisible to the layers below it.
+
+```mermaid
+flowchart TB
+    L1["Layer 1 — WSL2 Host + Network Health\nNode Exporter → Prometheus → Grafana\n❓ Is the machine healthy?"]
+    L2["Layer 2 — Infra + AI Runtime Combined\nNode Exporter + OpenClaw → Prometheus → Grafana\n❓ Is the host healthy AND is the agent running?"]
+    L3["Layer 3 — Telemetry Pipeline Health\nAlloy + Tempo → Prometheus + Tempo → Grafana\n❓ Is the observability stack itself healthy?"]
+    L4["Layer 4 — Agent Runtime Observability\nOpenClaw metrics → Alloy → Prometheus → Grafana\n❓ Is the agent degraded? Queue depth? Stuck sessions?"]
+    L5["Layer 5 — Economics (Cost + Tokens)\nUsage RPCs → usage_exporter → Prometheus → Grafana + Alerts\n❓ How much is this costing? Is spend within bounds?"]
+
+    L1 --> L2 --> L3 --> L4 --> L5
+
+    style L1 fill:#1e3a5f,stroke:#4a9eff,color:#ffffff
+    style L2 fill:#1e3a5f,stroke:#4a9eff,color:#ffffff
+    style L3 fill:#1a3a2a,stroke:#4aff8a,color:#ffffff
+    style L4 fill:#1a3a2a,stroke:#4aff8a,color:#ffffff
+    style L5 fill:#3a1f1a,stroke:#ff8a4a,color:#ffffff
+```
 
 ### Key roles
 
@@ -100,7 +149,7 @@ HTTP server listening on :3200
 
 ## Fix 2 — Tempo `remote_write` hostname
 
-Tempo’s default config uses a Docker-style hostname that breaks on bare WSL2.
+Tempo's default config uses a Docker-style hostname that breaks on bare WSL2.
 
 ```bash
 sudo nano /etc/tempo/config.yml
@@ -187,7 +236,7 @@ Prometheus datasource (`http://localhost:9090`) should already exist.
 
 ## Fix 5 — Start usage_exporter.py
 
-The `usage_exporter.py` script pulls OpenClaw’s native usage RPCs and exposes them as Prometheus metrics on `:9479`.
+The `usage_exporter.py` script pulls OpenClaw's native usage RPCs and exposes them as Prometheus metrics on `:9479`.
 
 ```bash
 # Run in background
@@ -273,7 +322,7 @@ Two dashboards cover this layer.
 ## Layer 4 — Agent Runtime Observability
 
 **Dashboard:** `openclaw-runtime-dashboard.json`  
-**Purpose:** Operational health of the agent — not just “is it alive” but “is it healthy”.
+**Purpose:** Operational health of the agent — not just "is it alive" but "is it healthy".
 
 | Panel | Signal |
 |:------|:-------|
@@ -291,12 +340,39 @@ Two dashboards cover this layer.
 
 ## Layer 5 — Economics (Cost + Token Monitoring)
 
-### Architecture
+### Economics Pipeline
 
-```
-OpenClaw usage RPCs  →  usage_exporter.py (:9479)  →  Prometheus  →  Grafana v3 dashboard
-                                                                    ↓
-                                                            Alert rules (5 rules)
+```mermaid
+flowchart LR
+    subgraph Source["📡 OpenClaw Usage RPCs"]
+        R1["sessions.usage"]
+        R2["usage.cost"]
+        R3["sessions.usage.timeseries"]
+        R4["sessions.usage.logs"]
+    end
+
+    subgraph Exporter["⚙️ usage_exporter.py\n:9479"]
+        M1["openclaw_usage_range_totalCost"]
+        M2["openclaw_usage_range_totalTokens"]
+        M3["openclaw_session_total_cost_usd"]
+        M4["openclaw_usage_model_totalCost"]
+        M5["openclaw_usage_channel_totalCost"]
+    end
+
+    subgraph Outputs["📊 Outputs"]
+        PR["Prometheus\n:9090"]
+        GR["Grafana Dashboard\nopenclaw-usage-cost-v3"]
+        AL["5 Alert Rules"]
+    end
+
+    Source -->|"HTTP RPC poll\nevery 60s"| Exporter
+    Exporter -->|"/metrics scrape"| PR
+    PR --> GR
+    PR --> AL
+
+    style Source fill:#1e3a5f,stroke:#4a9eff,color:#ffffff
+    style Exporter fill:#1a3a2a,stroke:#4aff8a,color:#ffffff
+    style Outputs fill:#3a1f1a,stroke:#ff8a4a,color:#ffffff
 ```
 
 ### Key metrics
@@ -431,9 +507,9 @@ curl http://localhost:9479/healthz
 1. **Installed ≠ wired** — Tempo was installed but Alloy silently dropped traces until it was properly connected
 2. **Open port ≠ healthy pipeline** — trace the full signal path end-to-end
 3. **Validate config before restart** — `promtool check config` every time
-4. **Docker hostnames break outside Docker** — Tempo’s default `http://prometheus:9090` DNS fails on bare WSL2
+4. **Docker hostnames break outside Docker** — Tempo's default `http://prometheus:9090` DNS fails on bare WSL2
 5. **Inventory real metrics first** — build dashboards against confirmed metrics, not assumed ones
-6. **Don’t fake what already exists** — if OpenClaw Usage UI already shows token/cost data natively, use it
+6. **Don't fake what already exists** — if OpenClaw Usage UI already shows token/cost data natively, use it
 
 ---
 
