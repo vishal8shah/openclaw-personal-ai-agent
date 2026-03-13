@@ -1,5 +1,4 @@
-// OpenClaw colour scheme for just-the-docs v0.8.x
-// Dark base with teal accent
+// OpenClaw — dark teal colour scheme for just-the-docs v0.8.x
 
 $body-background-color: #0d1117;
 $sidebar-color: #111820;
@@ -15,5 +14,24 @@ $code-background-color: #161b22;
 $search-background-color: #161b22;
 $search-result-preview-color: #8b949e;
 $feedback-color: #134e4a;
-$nav-width: 248px;
-$content-width: 860px;
+
+// Sidebar sizing
+$nav-width: 220px;
+$content-width: 900px;
+
+// Tighten the site title so it never wraps
+.site-title {
+  font-size: 1.1rem !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+// Subtitle / tagline under the title
+.site-header .site-description {
+  font-size: 0.72rem;
+  color: #8b949e;
+  margin-top: 2px;
+}
