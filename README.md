@@ -37,16 +37,16 @@ This guide was built the hard way — through real deployment, real errors, and 
 
 | Section | What You Get |
 |---|---|
-| [Full Setup Guide](docs/security.md) | End-to-end walkthrough from WSL2 to a hardened personal deployment |
-| [Observability Guide](docs/observability.md) | Five-layer monitoring stack — host, pipeline, runtime, cost/token economics |
-| [Network Isolation](docs/security.md#part-7--physical-network-isolation) | Dedicated router setup for experiment network |
-| [Security Hardening](docs/security.md#part-3--security-configuration) | Every setting explained with threat context |
-| [DNS Hardening](docs/security.md#13-wsl2-dns-hardening--optional-but-recommended) | WSL2 DNS troubleshooting |
-| [Sandbox Isolation](docs/security.md#part-6--sandbox-mode-docker) | Docker-based tool execution with zero network |
-| [Credential Security](docs/security.md#part-4--credential-security) | File permissions, spend caps, rotation protocol |
-| [Health Monitoring](docs/security.md#part-9--health-monitoring) | External alerting via healthchecks.io |
-| [Troubleshooting](docs/troubleshooting.md) | Every real error encountered + verified fix |
-| [Security Checklist](docs/security.md#security-checklist--complete-verification) | Complete verification checklist |
+| [Full Setup Guide](docs-site/docs/security.md) | End-to-end walkthrough from WSL2 to a hardened personal deployment |
+| [Observability Guide](docs-site/docs/observability.md) | Five-layer monitoring stack — host, pipeline, runtime, cost/token economics |
+| [Network Isolation](docs-site/docs/security.md#part-7--physical-network-isolation) | Dedicated router setup for experiment network |
+| [Security Hardening](docs-site/docs/security.md#part-3--security-configuration) | Every setting explained with threat context |
+| [DNS Hardening](docs-site/docs/security.md#13-wsl2-dns-hardening--optional-but-recommended) | WSL2 DNS troubleshooting |
+| [Sandbox Isolation](docs-site/docs/security.md#part-6--sandbox-mode-docker) | Docker-based tool execution with zero network |
+| [Credential Security](docs-site/docs/security.md#part-4--credential-security) | File permissions, spend caps, rotation protocol |
+| [Health Monitoring](docs-site/docs/security.md#part-9--health-monitoring) | External alerting via healthchecks.io |
+| [Troubleshooting](docs-site/docs/troubleshooting.md) | Every real error encountered + verified fix |
+| [Security Checklist](docs-site/docs/security.md#security-checklist--complete-verification) | Complete verification checklist |
 
 ---
 
@@ -79,7 +79,7 @@ Layer 5  — Economics             Cost + token monitoring via native usage RPCs
 
 Eight Grafana dashboards. Five Prometheus alert rules. Full trace visibility via Tempo.
 
-📊 **[Full Observability Guide →](docs/observability.md)**
+📊 **[Full Observability Guide →](docs-site/docs/observability.md)**
 
 ---
 
@@ -94,7 +94,7 @@ Eight Grafana dashboards. Five Prometheus alert rules. Full trace visibility via
 
 ## Quick Start
 
-> **Full guide:** [docs/security.md](docs/security.md)
+> **Full guide:** [docs-site/docs/security.md](docs-site/docs/security.md)
 
 ```bash
 # 1. Enable WSL2 (PowerShell as Admin)
@@ -114,13 +114,13 @@ source ~/.bashrc
 # 4. Run setup wizard (installs gateway as background service)
 openclaw onboard --install-daemon
 
-# 5. Apply hardened config — see docs/security.md for full walkthrough
+# 5. Apply hardened config — see docs-site/docs/security.md for full walkthrough
 # 6. Run security audit
 openclaw doctor
 openclaw security audit --deep
 ```
 
-**Do not skip the security configuration.** The default config is optimised for getting started fast, not for safety. The [full guide](docs/security.md) walks through every setting with threat context.
+**Do not skip the security configuration.** The default config is optimised for getting started fast, not for safety. The [full guide](docs-site/docs/security.md) walks through every setting with threat context.
 
 ---
 
@@ -140,11 +140,12 @@ openclaw-personal-ai-agent/
 ├── scripts/
 │   ├── setup.sh                           Automated install script
 │   └── healthcheck.sh                     Wraps openclaw doctor + healthchecks.io ping
-├── docs/
-│   ├── security.md                        Complete hardening guide
-│   ├── observability.md                   Five-layer observability stack guide
-│   ├── troubleshooting.md                 Every real error + fix
-│   └── skills.md                          Safe skill installation guide
+├── docs-site/
+│   └── docs/
+│       ├── security.md                    Complete hardening guide
+│       ├── observability.md               Five-layer observability stack guide
+│       ├── troubleshooting.md             Every real error + fix
+│       └── skills.md                      Safe skill installation guide
 └── workspace/
     └── boot.md.example                    Template with placeholders
 ```
