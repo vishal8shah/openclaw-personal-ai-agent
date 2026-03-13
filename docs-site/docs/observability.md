@@ -44,6 +44,13 @@ flowchart LR
     style Viz fill:#3a1a3a,stroke:#ff4aff,color:#ffffff
 ```
 
+style NE fill:#1e3a5f,stroke:#4a9eff,color:#ffffff
+style OC fill:#1e3a5f,stroke:#4a9eff,color:#ffffff
+style AL fill:#1e3a5f,stroke:#4a9eff,color:#ffffff
+style UE fill:#1e3a5f,stroke:#4a9eff,color:#ffffff
+style PR fill:#1a3a2a,stroke:#4aff8a,color:#ffffff
+style TE fill:#1a3a2a,stroke:#4aff8a,color:#ffffff
+style GR fill:#3a1a3a,stroke:#ff4aff,color:#ffffff
 !!! important
     Runtime telemetry and economics telemetry are not the same thing. OpenTelemetry signals give you pipeline health and trace flow. Cost and token data lives in OpenClaw's native usage RPCs. Neither replaces the other.
 
@@ -373,6 +380,18 @@ flowchart LR
     style Source fill:#1e3a5f,stroke:#4a9eff,color:#ffffff
     style Exporter fill:#1a3a2a,stroke:#4aff8a,color:#ffffff
     style Outputs fill:#3a1f1a,stroke:#ff8a4a,color:#ffffff
+style R1 fill:#1e3a5f,stroke:#4a9eff,color:#ffffff
+style R2 fill:#1e3a5f,stroke:#4a9eff,color:#ffffff
+style R3 fill:#1e3a5f,stroke:#4a9eff,color:#ffffff
+style R4 fill:#1e3a5f,stroke:#4a9eff,color:#ffffff
+style M1 fill:#1a3a2a,stroke:#4aff8a,color:#ffffff
+style M2 fill:#1a3a2a,stroke:#4aff8a,color:#ffffff
+style M3 fill:#1a3a2a,stroke:#4aff8a,color:#ffffff
+style M4 fill:#1a3a2a,stroke:#4aff8a,color:#ffffff
+style M5 fill:#1a3a2a,stroke:#4aff8a,color:#ffffff
+style PR fill:#3a1f1a,stroke:#ff8a4a,color:#ffffff
+style GR fill:#3a1f1a,stroke:#ff8a4a,color:#ffffff
+style AL fill:#3a1f1a,stroke:#ff8a4a,color:#ffffff
 ```
 
 ### Key metrics
