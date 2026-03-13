@@ -1,5 +1,5 @@
-title: "OpenClaw Personal AI Agent — Security-Hardened Deployment"
-description: "A security-hardened, defence-in-depth deployment guide for self-hosted AI agents on WSL2 Ubuntu"
+title: "OpenClaw Personal AI Agent — Security-Hardened Deployment + Observability"
+description: "A security-hardened, defence-in-depth deployment guide for self-hosted AI agents on WSL2 Ubuntu — with full five-layer observability"
 url: "https://vishal8shah.github.io"
 baseurl: "/openclaw-personal-ai-agent"
 
@@ -21,6 +21,7 @@ social:
 # Navigation
 header_pages:
   - docs/security.md
+  - docs/observability.md
   - docs/troubleshooting.md
   - docs/skills.md
 

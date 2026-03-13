@@ -1,10 +1,11 @@
-# 🦞 OpenClaw Personal AI Agent — Security-Hardened Deployment
+# 🦞 OpenClaw Personal AI Agent — Security-Hardened Deployment + Observability
 
-> **A security-hardened, defence-in-depth deployment guide for self-hosted AI agents on WSL2 Ubuntu**
+> **A security-hardened, defence-in-depth deployment guide for self-hosted AI agents on WSL2 Ubuntu — with five-layer observability**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform: WSL2](https://img.shields.io/badge/Platform-WSL2%20Ubuntu-orange.svg)](#prerequisites)
 [![Security: 10-Layer](https://img.shields.io/badge/Security-10%20Layer%20Defence-green.svg)](#defence-in-depth-architecture)
+[![Observability: 5-Layer](https://img.shields.io/badge/Observability-5%20Layer%20Stack-blueviolet.svg)](#observability-architecture)
 
 ---
 
@@ -12,12 +13,13 @@
 
 A complete, battle-tested guide to deploying [OpenClaw](https://openclaw.ai) as a personal AI agent that:
 
-- Runs 24/7 on a recycled laptop (~$0/month ongoing cost)
+- Runs 24/7 on a recycled laptop (~$0/month infra cost)
 - Connects via Telegram for on-demand briefings (ASX, MAG7, AUD/USD, and more)
-- Uses Google Gemini 3 Flash as the AI backbone
+- Uses **OpenAI Codex (GPT-5.4)** as the AI backbone
 - Is locked down with **10 independent security layers** — not as an afterthought, but as the foundation
+- Is instrumented with a **five-layer observability stack** covering host, pipeline, runtime, and economics
 
-This isn't a quickstart. It's what a secure deployment actually looks like.
+This isn't a quickstart. It's what a secure, observable deployment actually looks like.
 
 ---
 
@@ -36,20 +38,19 @@ This guide was built the hard way — through real deployment, real errors, and 
 | Section | What You Get |
 |---|---|
 | [Full Setup Guide](docs/security.md) | End-to-end walkthrough from WSL2 to a hardened personal deployment |
+| [Observability Guide](docs/observability.md) | Five-layer monitoring stack — host, pipeline, runtime, cost/token economics |
 | [Network Isolation](docs/security.md#part-7--physical-network-isolation) | Dedicated router setup for experiment network |
 | [Security Hardening](docs/security.md#part-3--security-configuration) | Every setting explained with threat context |
-| [DNS Hardening](docs/security.md#13-wsl2-dns-hardening--optional-but-recommended) | WSL2 DNS troubleshooting (optional, version-dependent) |
+| [DNS Hardening](docs/security.md#13-wsl2-dns-hardening--optional-but-recommended) | WSL2 DNS troubleshooting |
 | [Sandbox Isolation](docs/security.md#part-6--sandbox-mode-docker) | Docker-based tool execution with zero network |
 | [Credential Security](docs/security.md#part-4--credential-security) | File permissions, spend caps, rotation protocol |
 | [Health Monitoring](docs/security.md#part-9--health-monitoring) | External alerting via healthchecks.io |
-| [Troubleshooting](docs/security.md#troubleshooting) | Every real error encountered + verified fix |
-| [Security Checklist](docs/security.md#security-checklist--complete-verification) | Complete verification checklist for auditing |
+| [Troubleshooting](docs/troubleshooting.md) | Every real error encountered + verified fix |
+| [Security Checklist](docs/security.md#security-checklist--complete-verification) | Complete verification checklist |
 
 ---
 
 ## Defence-in-Depth Architecture
-
-This deployment implements 10 independent security layers. Any single layer failing does not compromise the system:
 
 ```
 Layer 1  — Network isolation          Dedicated router — agent can't reach home network
@@ -66,10 +67,26 @@ Layer 10 — Supply chain                Reviewed, version-tracked skills only
 
 ---
 
+## Observability Architecture
+
+```
+Layer 1  — Host health           WSL2 Host + Network Health  (Node Exporter → Prometheus → Grafana)
+Layer 2  — Infra + Agent         Combined host + OpenClaw runtime signals (single triage view)
+Layer 3  — Telemetry pipeline    OTel / Alloy / Tempo health  + OTLP receiver latency p50/p95/p99
+Layer 4  — Agent runtime         Queue depth, stuck sessions, message throughput, wait quantiles
+Layer 5  — Economics             Cost + token monitoring via native usage RPCs → Prometheus → Grafana
+```
+
+Eight Grafana dashboards. Five Prometheus alert rules. Full trace visibility via Tempo.
+
+📊 **[Full Observability Guide →](docs/observability.md)**
+
+---
+
 ## Prerequisites
 
 - Windows 10/11 machine (a spare laptop works perfectly)
-- Google account (for Gemini API key via [Google AI Studio](https://aistudio.google.com))
+- ChatGPT Plus account (for OpenAI Codex / GPT-5.4 via OAuth)
 - Telegram account (for bot creation via @BotFather)
 - Basic comfort with a Linux terminal
 
@@ -124,7 +141,8 @@ openclaw-personal-ai-agent/
 │   ├── setup.sh                           Automated install script
 │   └── healthcheck.sh                     Wraps openclaw doctor + healthchecks.io ping
 ├── docs/
-│   ├── security.md                        Complete hardening guide (the main event)
+│   ├── security.md                        Complete hardening guide
+│   ├── observability.md                   Five-layer observability stack guide
 │   ├── troubleshooting.md                 Every real error + fix
 │   └── skills.md                          Safe skill installation guide
 └── workspace/
@@ -150,14 +168,14 @@ grep -r "bot[0-9]" .          # Scan for Telegram token pattern
 
 | Component | Choice | Why |
 |---|---|---|
-| AI Model | Google Gemini 3 Flash | Fast inference, token-efficient, low cost |
+| AI Model | OpenAI Codex (GPT-5.4) | State-of-the-art reasoning, tool-calling, agentic tasks |
 | Agent Framework | OpenClaw | Self-hosted, extensible, Telegram-native |
 | Platform | WSL2 + Ubuntu | Full Linux kernel with Windows host isolation |
 | Sandbox | Docker | Kernel-level tool execution isolation |
 | Firewall | UFW | Defence-in-depth network layer |
-| Monitoring | healthchecks.io | External crash detection with 5-min alerting |
-
-> **Note on model choice:** This deployment started on Gemini Pro but was switched to Gemini 3 Flash for faster inference and better token efficiency during extended use. Flash handles the personal agent workload comfortably at a fraction of the cost.
+| Monitoring | Prometheus + Grafana + Tempo | Full observability: metrics, dashboards, distributed traces |
+| Alerting | Prometheus alert rules | Cost, token burn, runtime, and exporter health alerts |
+| Health | healthchecks.io | External crash detection with 5-min alerting |
 
 ---
 
@@ -189,5 +207,5 @@ Built through real deployment. Every error in the troubleshooting section was re
 ---
 
 <p align="center">
-  <i>Most people rushing to deploy AI agents treat security as optional.<br/>This guide treats it as the foundation.</i>
+  <i>Most people rushing to deploy AI agents treat security as optional.<br/>This guide treats it as the foundation — and then instruments everything on top of it.</i>
 </p>
