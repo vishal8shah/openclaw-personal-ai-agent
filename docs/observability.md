@@ -29,7 +29,7 @@ Infrastructure health tells you the machine is alive. It does not tell you wheth
 
 This guide separates those concerns into five distinct layers — each with its own data source, dashboard, and purpose.
 
-> **Key architectural insight:** Runtime telemetry and economics telemetry are not the same thing. OpenTelemetry signals give you pipeline health and trace flow. Cost and token data lives in OpenClaw’s native usage RPCs. Neither replaces the other.
+> **Key architectural insight:** Runtime telemetry and economics telemetry are not the same thing. OpenTelemetry signals give you pipeline health and trace flow. Cost and token data lives in OpenClaw's native usage RPCs. Neither replaces the other.
 
 ---
 
@@ -46,12 +46,41 @@ This guide separates those concerns into five distinct layers — each with its 
 
 ### Target architecture
 
-```
-WSL2 Host Metrics     → Node Exporter  → Prometheus → Grafana
-OpenClaw Metrics      → Alloy metrics  → Prometheus → Grafana
-OTel / Trace Signals  → Alloy          → Tempo      → Grafana Explore
-Tempo Metrics Gen     → Tempo remote_write → Prometheus
-OpenClaw Usage RPCs   → usage_exporter → Prometheus → Grafana
+```mermaid
+graph TD
+    classDef host fill:#0f172a,stroke:#334155,stroke-width:2px,color:#f8fafc;
+    classDef collector fill:#1e3a8a,stroke:#3b82f6,stroke-width:2px,color:#f8fafc;
+    classDef storage fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#f8fafc;
+    classDef viz fill:#4c1d95,stroke:#8b5cf6,stroke-width:2px,color:#f8fafc;
+
+    subgraph WSL2 ["WSL2 Host Environment"]
+        direction TB
+        subgraph Sources ["Telemetry Sources"]
+            NE("Node Exporter<br/>:9100"):::host
+            UE("usage_exporter.py<br/>:9479"):::host
+            OC("OpenClaw Gateway<br/>:18789"):::host
+        end
+        AL("Grafana Alloy (OTel)<br/>:12345 / :4318"):::collector
+    end
+
+    subgraph Backend ["Storage Layer"]
+        direction TB
+        PR[("Prometheus<br/>:9090")]:::storage
+        TE[("Tempo<br/>:4317 / :3200")]:::storage
+    end
+
+    GR{"Grafana<br/>:3000"}:::viz
+
+    NE -- "/metrics" --> PR
+    UE -- "/metrics" --> PR
+    AL -- "/metrics" --> PR
+
+    OC -- "OTLP Traces" --> AL
+    AL -- "gRPC :4317" --> TE
+
+    TE -- "remote_write" --> PR
+    PR -- "PromQL" --> GR
+    TE -- "TraceQL" --> GR
 ```
 
 ---
@@ -59,6 +88,7 @@ OpenClaw Usage RPCs   → usage_exporter → Prometheus → Grafana
 ## Layer 1 — WSL2 Host + Network Health
 
 **Dashboard:** `wsl2-host-network-health.json`
+
 **Purpose:** Infrastructure baseline. Eliminates the host as a suspect before investigating the agent stack.
 
 | Panel | Signal |
@@ -77,6 +107,7 @@ OpenClaw Usage RPCs   → usage_exporter → Prometheus → Grafana
 ## Layer 2 — Infra + AI Runtime Combined
 
 **Dashboard:** `infra-plus-aiops-dashboard.json`
+
 **Purpose:** One view bridging machine health and agent activity. The fastest triage starting point.
 
 | Panel | Signal |
@@ -112,6 +143,7 @@ Two dashboards cover this layer.
 ### OpenClaw Observability Hero
 
 **Dashboard:** `openclaw-observability-hero.json`
+
 **Purpose:** Telemetry-pipeline-level observability for OpenClaw specifically — watching the watcher.
 
 | Panel | Signal |
@@ -130,7 +162,8 @@ Two dashboards cover this layer.
 ## Layer 4 — Agent Runtime Observability
 
 **Dashboard:** `openclaw-runtime-dashboard.json`
-**Purpose:** Operational health of the agent itself — not just “is it alive” but “is it healthy”.
+
+**Purpose:** Operational health of the agent itself — not just "is it alive" but "is it healthy".
 
 | Panel | Signal |
 |:------|:-------|
@@ -147,12 +180,51 @@ Two dashboards cover this layer.
 
 ## Layer 5 — Economics (Cost + Token Monitoring)
 
-### Architecture
+### Five-Layer Dependency Stack
 
+```mermaid
+graph BT
+    classDef l1 fill:#1e293b,stroke:#475569,stroke-width:2px,color:#cbd5e1;
+    classDef l2 fill:#334155,stroke:#64748b,stroke-width:2px,color:#f1f5f9;
+    classDef l3 fill:#1e3a8a,stroke:#3b82f6,stroke-width:2px,color:#eff6ff;
+    classDef l4 fill:#4338ca,stroke:#6366f1,stroke-width:2px,color:#e0e7ff;
+    classDef l5 fill:#0f766e,stroke:#14b8a6,stroke-width:2px,color:#ccfbf1;
+
+    L5["Layer 5: Economics<br/>(Usage Exporter to Prometheus)<br/>Cost & Tokens"]:::l5
+    L4["Layer 4: Agent Runtime<br/>(OpenClaw to Alloy to Prometheus)<br/>Queue Depth & Latency"]:::l4
+    L3["Layer 3: Telemetry Pipeline<br/>(Alloy + Tempo)<br/>Export Health & Backpressure"]:::l3
+    L2["Layer 2: AI Runtime<br/>(Node + OpenClaw)<br/>Host + Agent Status"]:::l2
+    L1["Layer 1: Infrastructure<br/>(Node Exporter to Prometheus)<br/>WSL2 Host CPU/Mem/Net"]:::l1
+
+    L1 -->|Dictates| L2
+    L2 -->|Supports| L3
+    L3 -->|Monitors| L4
+    L4 -->|Drives| L5
 ```
-OpenClaw usage RPCs  →  usage_exporter.py (:9479)  →  Prometheus  →  Grafana v3 dashboard
-                                                                    ↓
-                                                            Alert rules (5 rules)
+
+### Economics Telemetry Pipeline
+
+```mermaid
+sequenceDiagram
+    participant OC as OpenClaw RPCs
+    participant UE as usage_exporter.py (:9479)
+    participant PR as Prometheus (:9090)
+    participant GR as Grafana / Alerts
+
+    loop Every 60s
+        UE->>OC: Poll sessions.usage & usage.cost
+        OC-->>UE: Raw Token & Cost JSON
+    end
+
+    Note over UE,PR: Translates JSON to Prom format
+
+    loop Every 15s (scrape_interval)
+        PR->>UE: GET /metrics
+        UE-->>PR: openclaw_usage_range_totalCost<br/>openclaw_usage_range_totalTokens
+    end
+
+    PR->>GR: PromQL Evaluation
+    Note over GR: Updates openclaw-usage-cost-v3<br/>Triggers 5 Alert Rules
 ```
 
 ### Key metrics
