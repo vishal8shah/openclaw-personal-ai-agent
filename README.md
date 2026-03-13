@@ -27,7 +27,7 @@ This isn't a quickstart. It's what a secure, observable deployment actually look
 
 Most OpenClaw deployment guides optimise for speed. Get it running, worry about security later. The problem is that "later" never comes — and in early 2026, security researchers reported widespread publicly accessible OpenClaw instances running with default configurations: authentication bypassed, gateways exposed on every network interface, no encryption at rest.
 
-This guide was built the hard way — through real deployment, real errors, and real fixes — so you don't have to repeat them.
+This guide was built the hard way — through real deployment, real errors, and real fixes — so you don't have to.
 
 > **Transparency:** OpenClaw is evolving quickly. This repo is honest about what I actually used during setup, while pointing readers to the current official docs for anything version-sensitive. Where the two differ, both are shown and clearly labelled.
 
@@ -70,9 +70,9 @@ Layer 10 — Supply chain                Reviewed, version-tracked skills only
 ## Observability Architecture
 
 ```
-Layer 1  — Host health           WSL2 Host + Network Health  (Node Exporter → Prometheus → Grafana)
+Layer 1  — Host health           WSL2 Host + Network Health (Node Exporter → Prometheus → Grafana)
 Layer 2  — Infra + Agent         Combined host + OpenClaw runtime signals (single triage view)
-Layer 3  — Telemetry pipeline    OTel / Alloy / Tempo health  + OTLP receiver latency p50/p95/p99
+Layer 3  — Telemetry pipeline    OTel / Alloy / Tempo health + OTLP receiver latency p50/p95/p99
 Layer 4  — Agent runtime         Queue depth, stuck sessions, message throughput, wait quantiles
 Layer 5  — Economics             Cost + token monitoring via native usage RPCs → Prometheus → Grafana
 ```

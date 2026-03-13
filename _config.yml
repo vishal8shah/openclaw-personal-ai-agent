@@ -18,7 +18,7 @@ social:
   links:
     - https://www.linkedin.com/in/vishal8shah
 
-# Navigation
+# Navigation — ordered: Home, Security, Observability, Troubleshooting, Skills
 header_pages:
   - docs/security.md
   - docs/observability.md

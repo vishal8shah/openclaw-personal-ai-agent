@@ -1,11 +1,12 @@
 ---
 layout: default
 title: Observability
+nav_order: 2
 ---
 
 # Observability — Monitoring Your OpenClaw Agent
 
-This guide covers the full observability stack built on top of the OpenClaw personal agent deployment. It is a companion to the [Security Guide](security) and assumes the agent is already running.
+This guide covers the full observability stack built on top of the OpenClaw personal agent deployment. It is a companion to the [Security Guide](security) and assumes the agent is already running and hardened.
 
 ---
 
@@ -44,7 +45,7 @@ OpenClaw Usage RPCs   → usage_exporter → Prometheus → Grafana
 
 ## Layer 1 — WSL2 Host + Network Health
 
-**Dashboard:** `wsl2-host-network-health.json`  
+**Dashboard:** `wsl2-host-network-health.json`
 **Purpose:** Infrastructure baseline. Eliminates the host as a suspect before investigating the agent stack.
 
 | Panel | Signal |
@@ -62,7 +63,7 @@ OpenClaw Usage RPCs   → usage_exporter → Prometheus → Grafana
 
 ## Layer 2 — Infra + AI Runtime Combined
 
-**Dashboard:** `infra-plus-aiops-dashboard.json`  
+**Dashboard:** `infra-plus-aiops-dashboard.json`
 **Purpose:** One view bridging machine health and agent activity. The fastest triage starting point.
 
 | Panel | Signal |
@@ -82,7 +83,7 @@ Two dashboards cover this layer.
 
 ### OTel Pipeline Health
 
-**Dashboard:** `otel-pipeline-health.json`  
+**Dashboard:** `otel-pipeline-health.json`
 **Purpose:** Health of the Alloy → Tempo collection pipeline.
 
 | Panel | Signal |
@@ -98,7 +99,7 @@ Two dashboards cover this layer.
 
 ### OpenClaw Observability Hero
 
-**Dashboard:** `openclaw-observability-hero.json`  
+**Dashboard:** `openclaw-observability-hero.json`
 **Purpose:** Telemetry-pipeline-level observability for OpenClaw specifically — watching the watcher.
 
 | Panel | Signal |
@@ -108,8 +109,8 @@ Two dashboards cover this layer.
 | Accepted / Sent Spans/sec | Receiver + exporter throughput |
 | OTLP Receiver Span Flow | accepted / refused / failed |
 | Exporter Health & Backpressure | sent / send failed / queue |
-| **OTLP HTTP Requests by Status** | `http_server_request_duration_seconds` by status code |
-| **OTLP Receiver Latency** | p50 / p95 / p99 |
+| OTLP HTTP Requests by Status | `http_server_request_duration_seconds` by status code |
+| OTLP Receiver Latency | p50 / p95 / p99 |
 | Tempo Ingest Signals | distributor / receiver / discarded |
 | Collector Resource Footprint | Alloy resident + virtual memory, host RX/TX |
 
@@ -119,7 +120,7 @@ Two dashboards cover this layer.
 
 ## Layer 4 — Agent Runtime Observability
 
-**Dashboard:** `openclaw-runtime-dashboard.json`  
+**Dashboard:** `openclaw-runtime-dashboard.json`
 **Purpose:** Operational health of the agent itself — not just "is it alive" but "is it healthy".
 
 | Panel | Signal |
@@ -130,7 +131,7 @@ Two dashboards cover this layer.
 | Queue Wait p95 | 95th percentile queue wait time |
 | Message Throughput by Kind | Split by message kind |
 | Queue Depth by Session Kind | Split by session kind |
-| **Queue Wait Quantiles** | p50 / p95 / p99 — `claw_queue_wait_seconds` |
+| Queue Wait Quantiles | p50 / p95 / p99 — `claw_queue_wait_seconds` |
 
 > The p50/p95/p99 latency panels are the signal that tells you whether the agent is degraded before your users notice.
 
@@ -229,7 +230,7 @@ Restart Tempo and verify `/ready` returns 200.
 
 **Cause:** Multiline terminal paste silently mangles leading whitespace.
 
-**Rule:** Always run `promtool check config` before restarting. Use `sudo tee` not `sudo >` for privileged writes. Write configs with a real editor, not shell paste.
+**Rule:** Always run `promtool check config` before restarting. Use `sudo tee` not `sudo >` for privileged writes.
 
 ---
 
@@ -263,3 +264,11 @@ Restart Tempo and verify `/ready` returns 200.
 5. **Runtime telemetry ≠ economics telemetry** — different sources, different purposes
 6. **Alert thresholds need calibration** — one real session breaks every naive threshold
 7. **v3 > v1** — a dashboard that humans can read in 5 seconds is not the first one you build
+
+---
+
+## Related guides
+
+- 📖 [Security Guide](security) — harden the agent before instrumenting it
+- 🔧 [Troubleshooting](troubleshooting) — OpenClaw errors, DNS, Docker, Codex quota
+- 🧩 [Skills Guide](skills) — safe skill installation

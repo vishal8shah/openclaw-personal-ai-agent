@@ -1,12 +1,14 @@
 ---
 layout: default
 title: "Skills Guide"
-nav_order: 3
+nav_order: 4
 ---
 
 # Safe Skill Installation Guide
 
 > **Note:** The ClawHub CLI was originally distributed as `clawdhub` in earlier releases and has since been renamed to `clawhub`. This guide uses the current name. If you installed during the earlier period, both names should work.
+
+---
 
 ## Before Installing Any Skill
 
@@ -22,6 +24,8 @@ nav_order: 3
 
 > **Note on CLI commands:** The current documented ClawHub commands are `search`, `install`, `update`, `list`, `publish`, and `sync`. See [docs.openclaw.ai/tools/clawhub](https://docs.openclaw.ai/tools/clawhub) for the full reference. Other commands may exist in some versions but are not in the current public docs.
 
+---
+
 ## Recommended Skills
 
 | Skill | Purpose | Status |
@@ -29,12 +33,16 @@ nav_order: 3
 | nano-pdf | Document analysis and PDF processing | Reviewed before install |
 | playwright-mcp | Web automation and browsing | Reviewed before install |
 
+---
+
 ## Installing
 
 ```bash
 clawhub install nano-pdf
 clawhub install playwright-mcp
 ```
+
+---
 
 ## Version Tracking
 
@@ -46,6 +54,8 @@ clawhub list
 ```
 
 Never rely on `latest` — a compromised update would be auto-installed. The lockfile ensures you upgrade consciously after reviewing changelogs.
+
+---
 
 ## Updating Skills
 
@@ -60,3 +70,11 @@ clawhub update --all
 Always review the changelog before updating. Update one skill at a time and verify agent behaviour after each update.
 
 > **Note on `clawhub sync`:** The `sync` command scans local skills and publishes new or updated ones to the registry — it is a **publish/backup workflow**, not an update mechanism. To check for and apply upstream updates to installed skills, use `clawhub update`.
+
+---
+
+## Related guides
+
+- 📖 [Security Guide](security) — full hardening walkthrough including skill security (Part 5)
+- 📊 [Observability Guide](observability) — monitor agent health and cost after adding skills
+- 🔧 [Troubleshooting](troubleshooting) — Docker, gateway, and Codex quota fixes
