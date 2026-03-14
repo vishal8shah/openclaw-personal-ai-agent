@@ -14,23 +14,47 @@ Complete walkthrough from WSL2 setup to a fully hardened personal AI agent deplo
 The diagram below models the full dependency chain of OpenClaw's security posture. Each layer builds on the one below — if the network or kernel layers (L1/L2) fail, the application-layer security (L6/L7) remains intact.
 
 ```mermaid
-graph BT
+graph TD
+    %% Functional Color-Coding for Defense Domains
     classDef network fill:#0f172a,stroke:#334155,stroke-width:2px,color:#f8fafc;
     classDef system fill:#1e3a8a,stroke:#3b82f6,stroke-width:2px,color:#f8fafc;
     classDef app fill:#4c1d95,stroke:#8b5cf6,stroke-width:2px,color:#f8fafc;
+    classDef core fill:#115e59,stroke:#2dd4bf,stroke-width:2px,color:#f8fafc,stroke-dasharray: 5 5;
 
-    L10["Layer 10: Supply Chain<br/>(Version-Pinned Skills)"]:::app
-    L9["Layer 9: Credential Hygiene<br/>(chmod 600 / Spend Caps)"]:::app
-    L8["Layer 8: DNS Hardening<br/>(Static resolv.conf)"]:::system
-    L7["Layer 7: Sandbox Isolation<br/>(Docker / No Network)"]:::app
-    L6["Layer 6: Tool Policy<br/>(Explicit Allow/Deny Lists)"]:::system
-    L5["Layer 5: Channel Allowlist<br/>(Telegram DM Pairing)"]:::system
-    L4["Layer 4: Authentication<br/>(64-char Cryptographic Token)"]:::system
-    L3["Layer 3: Network Binding<br/>(127.0.0.1 Loopback Only)"]:::network
-    L2["Layer 2: Kernel Firewall<br/>(UFW Default Deny)"]:::network
-    L1["Layer 1: Physical Network Isolation<br/>(Dedicated Router)"]:::network
+    %% Logical Flow - All Defenses Converge on the Agent
+    subgraph AppDomain ["Application Security Domain (Code & Data)"]
+        direction BT
+        L10("Layer 10: Supply Chain<br/>[Pinned Skills]📦"):::app
+        L9("Layer 9: Credential Hygiene<br/>[chmod 600]🔑"):::app
+        L7("Layer 7: Sandbox Isolation<br/>[Docker/network:none]🧱"):::app
+        L10 --> L9 --> L7
+    end
 
-    L1 --> L2 --> L3 --> L4 --> L5 --> L6 --> L7 --> L8 --> L9 --> L10
+    subgraph SystemDomain ["System Integrity Domain (OS & Configuration)"]
+        direction BT
+        L8("Layer 8: DNS Hardening<br/>[Static resolv.conf]🖥️"):::system
+        L6("Layer 6: Tool Policy<br/>[Allow/Deny Lists]📜"):::system
+        L5("Layer 5: Channel Allowlist<br/>[DM Pairing]✅"):::system
+        L4("Layer 4: Authentication<br/>[64-char Token]🔐"):::system
+        L8 --> L6 --> L5 --> L4
+    end
+
+    subgraph NetworkDomain ["Network Perimeter Domain (Connectivity)"]
+        direction BT
+        L3("Layer 3: Network Binding<br/>[127.0.0.1 Loopback Only]➰"):::network
+        L2("Layer 2: Kernel Firewall<br/>[UFW Default Deny]🛡️"):::network
+        L1("Layer 1: Physical Isolation<br/>[Dedicated Router]🌐"):::network
+        L3 --> L2 --> L1
+    end
+
+    %% The Converging Secure Core
+    Agent("SECURE CORE<br/>(Personal AI Agent)"):::core
+
+    %% Connecting Domains and Peak Endpoint
+    NetworkDomain -.->|supports| SystemDomain
+    SystemDomain -.->|protects| AppDomain
+    AppDomain --> Agent
+
 ```
 
 ---
