@@ -418,8 +418,7 @@ The control UI exposes these usage RPC methods natively:
 - `sessions.usage.logs` — per-turn logs with model/token/cost detail
 
 !!! tip
-    For a showcase, use the **OpenClaw Usage UI** for native token/cost/session/model screenshots and **Grafana** for host + pipeline + traces. This is more truthful than building Grafana panels for data that already has a better native view.
-
+    Use the **OpenClaw Usage UI** for ad-hoc exploration and screenshots of token/cost/session/model data — it's the fastest way to answer "what did I spend today?". Use **Grafana** (via `usage_exporter.py`) for the same economics data when you need alerting, time-series trending, and correlation with host or pipeline signals. Both serve different jobs: native UI for inspection, Grafana for automation and history.
 ---
 
 ## Dashboard Import Guide
