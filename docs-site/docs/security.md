@@ -9,6 +9,32 @@ Complete walkthrough from WSL2 setup to a fully hardened personal AI agent deplo
 
 ---
 
+## The 10-Layer Defence Stack
+
+The diagram below models the full dependency chain of OpenClaw's security posture. Each layer builds on the one below — if the network or kernel layers (L1/L2) fail, the application-layer security (L6/L7) remains intact.
+
+```mermaid
+graph BT
+    classDef network fill:#0f172a,stroke:#334155,stroke-width:2px,color:#f8fafc;
+    classDef system fill:#1e3a8a,stroke:#3b82f6,stroke-width:2px,color:#f8fafc;
+    classDef app fill:#4c1d95,stroke:#8b5cf6,stroke-width:2px,color:#f8fafc;
+
+    L10["Layer 10: Supply Chain<br/>(Version-Pinned Skills)"]:::app
+    L9["Layer 9: Credential Hygiene<br/>(chmod 600 / Spend Caps)"]:::app
+    L8["Layer 8: DNS Hardening<br/>(Static resolv.conf)"]:::system
+    L7["Layer 7: Sandbox Isolation<br/>(Docker / No Network)"]:::app
+    L6["Layer 6: Tool Policy<br/>(Explicit Allow/Deny Lists)"]:::system
+    L5["Layer 5: Channel Allowlist<br/>(Telegram DM Pairing)"]:::system
+    L4["Layer 4: Authentication<br/>(64-char Cryptographic Token)"]:::system
+    L3["Layer 3: Network Binding<br/>(127.0.0.1 Loopback Only)"]:::network
+    L2["Layer 2: Kernel Firewall<br/>(UFW Default Deny)"]:::network
+    L1["Layer 1: Physical Network Isolation<br/>(Dedicated Router)"]:::network
+
+    L1 --> L2 --> L3 --> L4 --> L5 --> L6 --> L7 --> L8 --> L9 --> L10
+```
+
+---
+
 ## Part 1 — Prerequisites
 
 ### 1.1 Hardware
@@ -224,15 +250,65 @@ Verify:
 openclaw security audit --deep
 ```
 
+### Gateway & Sandbox Execution Architecture
+
+The diagram below demonstrates the interaction between UFW, the loopback interface, the gateway daemon, and the Docker execution environment. It visually proves that the sandbox lacks network access.
+
+```mermaid
+graph LR
+    classDef block fill:#7f1d1d,stroke:#ef4444,stroke-width:2px,color:#fff;
+    classDef allow fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#fff;
+    classDef core fill:#4c1d95,stroke:#8b5cf6,stroke-width:2px,color:#fff;
+
+    Ext["External Network<br/>(0.0.0.0)"]:::block
+    UFW{"UFW Firewall<br/>Deny Inbound"}:::block
+    Loop["Loopback Interface<br/>(127.0.0.1)"]:::allow
+
+    subgraph WSL2 ["WSL2 Ubuntu Host"]
+        direction TB
+        GW["OpenClaw Gateway<br/>Port: 18789"]:::core
+        subgraph Sandbox ["Docker Sandbox"]
+            direction LR
+            Tools["Tool Execution Runtime<br/>(networkMode: none)"]:::allow
+        end
+    end
+
+    Ext -.->|Dropped at Kernel| UFW
+    UFW -.-> GW
+    Loop -->|Allowed| GW
+    GW -->|Read-only volume mount| Tools
+```
+
 ---
 
 ## Part 7 — Physical Network Isolation
 
 For maximum isolation, run the agent on a **dedicated network segment** separate from your home network.
 
-```
-Internet → ISP Modem → [Home Router] → Home devices
-                              └→ [Agent Router] → Agent laptop (WSL2)
+```mermaid
+graph TD
+    classDef ext fill:#7f1d1d,stroke:#ef4444,stroke-width:2px,color:#fff;
+    classDef home fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#fff;
+    classDef agent fill:#1e3a8a,stroke:#3b82f6,stroke-width:2px,color:#fff;
+
+    INT((Internet / OpenAI API)):::ext
+    MOD["ISP Modem"]:::ext
+
+    HR["🏠 Home Router<br/>(Primary SSID)"]:::home
+    HD["Home Devices<br/>(NAS, Phones, Laptops)"]:::home
+
+    AR["🛡️ Agent Router<br/>(Guest SSID / VLAN)"]:::agent
+    AL["OpenClaw Laptop<br/>(WSL2 Ubuntu)"]:::agent
+
+    INT <--> MOD
+    MOD <--> HR
+    HR <--> HD
+
+    MOD <--> AR
+    AR <--> AL
+
+    HD -.->|Strictly Blocked| AL
+    AL -.->|Strictly Blocked| HD
 ```
 
 This means:
