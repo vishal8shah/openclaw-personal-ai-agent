@@ -174,6 +174,8 @@ When prompted:
 The diagram below traces the full path of a single message from your phone to tool execution.
 Each security gate (Steps 3, 5, 8) shows both outcomes: the happy path continues down, and the FAIL path returns to you immediately.
 
+<div style="transform: scale(1.3); transform-origin: top left; width: 77%; overflow: visible; margin-bottom: 8rem;">
+
 ```mermaid
 sequenceDiagram
     autonumber
@@ -203,6 +205,8 @@ sequenceDiagram
     SB-->>Gates: Tool result
     Gates-->>User: Final response via Telegram
 ```
+
+</div>
 
 !!! tip
     Steps 3, 5 and 8 are security gates. A failure at any gate stops the request immediately - no further processing occurs.
