@@ -169,6 +169,51 @@ When prompted:
 !!! note
     **API key users:** Set your key during onboarding and monitor billing at platform.openai.com.
 
+### Live Request Flow - Telegram to Tool Execution (Layers 4, 5, 6)
+
+The diagram below traces the full path of a single message from your phone to tool execution. Every security gate it must pass is labelled with its layer.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as You (Telegram DM)
+    participant TG as Telegram Bot API
+    participant GW as OpenClaw Gateway<br/>(127.0.0.1:18789)
+    participant L4 as Auth Check<br/>(Layer 4: 64-char Token)
+    participant L5 as Channel Allowlist<br/>(Layer 5: DM Pairing)
+    participant L6 as Tool Policy<br/>(Layer 6: Allow / Deny)
+    participant AI as AI Provider<br/>(OpenAI Codex)
+    participant SB as Sandbox<br/>(Docker / network:none)
+
+    User->>TG: Send message via Telegram DM
+    TG->>GW: Webhook POST (bot token validated by Telegram)
+    GW->>L4: Verify 64-char auth token
+    alt Token invalid
+        L4-->>GW: Reject - 401 Unauthorized
+        GW-->>User: No response (silent drop)
+    else Token valid
+        L4->>L5: Forward request
+        L5->>L5: Check sender chat_id against allowlist
+        alt chat_id not in allowlist
+            L5-->>GW: Reject - channel not paired
+            GW-->>User: No response (silent drop)
+        else chat_id allowed
+            L5->>AI: Forward message for inference
+            AI-->>L5: Response + tool_calls requested
+            L5->>L6: Submit tool_calls for policy check
+            L6->>L6: Validate each tool against allowlist
+            alt Tool not in allowlist
+                L6-->>GW: Reject tool call
+                GW-->>User: Error - tool not permitted
+            else Tool allowed
+                L6->>SB: Execute tool in Docker sandbox
+                SB-->>GW: Tool result (no network access)
+                GW-->>User: Final response via Telegram
+            end
+        end
+    end
+```
+
 ### 5.2 Authentication Token (Layer 4)
 
 ```bash
