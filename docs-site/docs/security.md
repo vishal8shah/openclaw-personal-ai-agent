@@ -172,7 +172,7 @@ When prompted:
 ### Live Request Flow - Telegram to Tool Execution (Layers 4, 5, 6)
 
 The diagram below traces the full path of a single message from your phone to tool execution.
-Green steps are the happy path. Red steps are silent drops or rejections at each security gate.
+Green steps are the happy path. Red steps are security gates where the request is silently dropped or rejected on failure.
 
 ```mermaid
 sequenceDiagram
@@ -189,13 +189,13 @@ sequenceDiagram
         GW->>Gates: Forward with auth token + chat_id
     end
 
-    rect rgb(254, 243, 199)
+    rect rgb(254, 226, 226)
         Note over Gates: Step 2 - Layer 4: Token check
         Gates->>Gates: Verify 64-char auth token
         Note right of Gates: Fail: silent drop, no reply to user
     end
 
-    rect rgb(254, 243, 199)
+    rect rgb(254, 226, 226)
         Note over Gates: Step 3 - Layer 5: Channel check
         Gates->>Gates: Match chat_id against allowlist
         Note right of Gates: Fail: silent drop, no reply to user
@@ -207,7 +207,7 @@ sequenceDiagram
         AI-->>Gates: Response + tool_calls
     end
 
-    rect rgb(254, 243, 199)
+    rect rgb(254, 226, 226)
         Note over Gates: Step 5 - Layer 6: Tool policy check
         Gates->>Gates: Validate tool_calls against allowlist
         Note right of Gates: Fail: error returned to user
