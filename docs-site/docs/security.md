@@ -172,52 +172,39 @@ When prompted:
 ### Live Request Flow - Telegram to Tool Execution (Layers 4, 5, 6)
 
 The diagram below traces the full path of a single message from your phone to tool execution.
-Green steps are the happy path. Red steps are security gates where the request is silently dropped or rejected on failure.
+Each security gate shows both the PASS path (continuing down) and the FAIL path (rejected back to the user).
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor User as You (Telegram)
-    participant GW as Gateway (127.0.0.1:18789)
-    participant Gates as Security Gates (L4 / L5 / L6)
+    participant GW as Gateway
+    participant Gates as Security Gates
     participant AI as OpenAI Codex
     participant SB as Docker Sandbox
 
-    rect rgb(220, 252, 231)
-        Note over User,GW: Step 1 - Message arrives
-        User->>GW: Send message via Telegram DM
-        GW->>Gates: Forward with auth token + chat_id
-    end
+    User->>GW: Send message via Telegram DM
+    GW->>Gates: Forward with auth token + chat_id
 
-    rect rgb(254, 226, 226)
-        Note over Gates: Step 2 - Layer 4: Token check
-        Gates->>Gates: Verify 64-char auth token
-        Note right of Gates: Fail: silent drop, no reply to user
-    end
-
-    rect rgb(254, 226, 226)
-        Note over Gates: Step 3 - Layer 5: Channel check
-        Gates->>Gates: Match chat_id against allowlist
-        Note right of Gates: Fail: silent drop, no reply to user
-    end
-
-    rect rgb(220, 252, 231)
-        Note over Gates,AI: Step 4 - Inference
-        Gates->>AI: Forward message for inference
-        AI-->>Gates: Response + tool_calls
-    end
-
-    rect rgb(254, 226, 226)
-        Note over Gates: Step 5 - Layer 6: Tool policy check
-        Gates->>Gates: Validate tool_calls against allowlist
-        Note right of Gates: Fail: error returned to user
-    end
-
-    rect rgb(220, 252, 231)
-        Note over Gates,User: Step 6 - Execution and reply
-        Gates->>SB: Execute approved tool (no network)
-        SB-->>Gates: Tool result
-        Gates-->>User: Final response via Telegram
+    Note over Gates: L4 - Token Check
+    alt FAIL: token invalid
+        Gates-->>User: Silent drop (no reply)
+    else PASS: token valid
+        Note over Gates: L5 - Channel Check
+        alt FAIL: chat_id not in allowlist
+            Gates-->>User: Silent drop (no reply)
+        else PASS: chat_id allowed
+            Gates->>AI: Forward message for inference
+            AI-->>Gates: Response + tool_calls
+            Note over Gates: L6 - Tool Policy Check
+            alt FAIL: tool not in allowlist
+                Gates-->>User: Error - tool not permitted
+            else PASS: tool approved
+                Gates->>SB: Execute tool (no network)
+                SB-->>Gates: Tool result
+                Gates-->>User: Final response via Telegram
+            end
+        end
     end
 ```
 
