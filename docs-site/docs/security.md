@@ -2,7 +2,7 @@
 
 Complete walkthrough from WSL2 setup to a fully hardened personal AI agent deployment.
 
-**Model tested against:** OpenAI Codex (GPT-5.4) — *See [docs.openclaw.ai](https://docs.openclaw.ai) for current model support.*
+**Model tested against:** OpenAI Codex (GPT-5.4) - *See [docs.openclaw.ai](https://docs.openclaw.ai) for current model support.*
 
 !!! tip
     A full five-layer observability stack accompanies this guide. See the [Observability Guide](observability.md) for Prometheus, Grafana, Tempo, and cost monitoring.
@@ -11,11 +11,10 @@ Complete walkthrough from WSL2 setup to a fully hardened personal AI agent deplo
 
 ## The 10-Layer Defence Stack
 
-The diagram below models the full dependency chain of OpenClaw's security posture. Each layer builds on the one below — if the network or kernel layers (L1/L2) fail, the application-layer security (L6/L7) remains intact.
+The diagram below models the full dependency chain of OpenClaw's security posture, numbered in the order you set them up. Physical isolation comes first; supply chain hardening is the final lock.
 
 ```mermaid
 graph TD
-    %% Functional Color-Coding for Defense Domains
     classDef network fill:#0f172a,stroke:#334155,stroke-width:2px,color:#f8fafc;
     classDef system fill:#1e3a8a,stroke:#3b82f6,stroke-width:2px,color:#f8fafc;
     classDef app fill:#4c1d95,stroke:#8b5cf6,stroke-width:2px,color:#f8fafc;
@@ -23,43 +22,95 @@ graph TD
 
     subgraph AppDomain["Application Security Domain (Code & Data)"]
         direction BT
-        L10["Layer 10: Supply Chain<br/>[Pinned Skills]📦"]:::app
-        L9["Layer 9: Credential Hygiene<br/>[chmod 600]🔑"]:::app
-        L7["Layer 7: Sandbox Isolation<br/>[Docker / network:none]🧱"]:::app
-        L10 --> L9 --> L7
+        L10["Layer 10: Supply Chain [Pinned Skills]"]:::app
+        L9["Layer 9: Credential Hygiene [chmod 600]"]:::app
+        L8["Layer 8: Sandbox Isolation [Docker / network:none]"]:::app
+        L10 --> L9 --> L8
     end
 
-    subgraph SystemDomain["System Integrity Domain (OS & Configuration)"]
+    subgraph SystemDomain["System Integrity Domain (OS & Config)"]
         direction BT
-        L8["Layer 8: DNS Hardening<br/>[Static resolv.conf]🖥️"]:::system
-        L6["Layer 6: Tool Policy<br/>[Allow / Deny Lists]📜"]:::system
-        L5["Layer 5: Channel Allowlist<br/>[DM Pairing]✅"]:::system
-        L4["Layer 4: Authentication<br/>[64-char Token]🔐"]:::system
-        L8 --> L6 --> L5 --> L4
+        L7["Layer 7: DNS Hardening [Static resolv.conf]"]:::system
+        L6["Layer 6: Tool Policy [Allow / Deny Lists]"]:::system
+        L5["Layer 5: Channel Allowlist [DM Pairing]"]:::system
+        L4["Layer 4: Authentication [64-char Token]"]:::system
+        L7 --> L6 --> L5 --> L4
     end
 
     subgraph NetworkDomain["Network Perimeter Domain (Connectivity)"]
         direction BT
-        L3["Layer 3: Network Binding<br/>[127.0.0.1 Loopback Only]➰"]:::network
-        L2["Layer 2: Kernel Firewall<br/>[UFW Default Deny]🛡️"]:::network
-        L1["Layer 1: Physical Isolation<br/>[Dedicated Router]🌐"]:::network
+        L3["Layer 3: Network Binding [127.0.0.1 Loopback]"]:::network
+        L2["Layer 2: Kernel Firewall [UFW Default Deny]"]:::network
+        L1["Layer 1: Physical Isolation [Dedicated Router]"]:::network
         L3 --> L2 --> L1
     end
 
-    %% The Converging Secure Core
-    Agent["SECURE CORE<br/>(Personal AI Agent)"]:::core
+    Agent["SECURE CORE (Personal AI Agent)"]:::core
 
-    %% Cross-domain links use nodes, not subgraph identifiers
     L3 -.->|supports| L4
-    L4 -.->|protects| L7
-    L7 --> Agent
+    L4 -.->|protects| L8
+    L8 --> Agent
 ```
 
 ---
 
-## Part 1 — Prerequisites
+## Part 1 - Physical Network Isolation (Layer 1)
 
-### 1.1 Hardware
+Set up a dedicated network segment for the agent before anything else. This is the outermost layer of defence.
+
+```mermaid
+graph TD
+    classDef ext fill:#7f1d1d,stroke:#ef4444,stroke-width:2px,color:#fff;
+    classDef home fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#fff;
+    classDef agent fill:#1e3a8a,stroke:#3b82f6,stroke-width:2px,color:#fff;
+
+    INT((Internet / OpenAI API)):::ext
+    MOD["ISP Modem"]:::ext
+    HR["Home Router (Primary SSID)"]:::home
+    HD["Home Devices (NAS, Phones, Laptops)"]:::home
+    AR["Agent Router (Guest SSID / VLAN)"]:::agent
+    AL["OpenClaw Laptop (WSL2 Ubuntu)"]:::agent
+
+    INT <--> MOD
+    MOD <--> HR
+    HR <--> HD
+    MOD <--> AR
+    AR <--> AL
+    HD -.->|Strictly Blocked| AL
+    AL -.->|Strictly Blocked| HD
+```
+
+- Agent can reach the internet (OpenAI Codex API, system updates)
+- Agent **cannot reach** home devices (NAS, printers, other laptops)
+- Home devices **cannot reach** the agent
+
+Any consumer router with a guest network or separate SSID achieves this.
+
+---
+
+## Part 2 - Kernel Firewall / UFW (Layer 2)
+
+```bash
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+sudo ufw allow ssh
+sudo ufw enable
+sudo ufw status verbose
+```
+
+The gateway binds to loopback only (`127.0.0.1:18789`) by default, so it has zero external surface even without UFW. UFW is defence-in-depth.
+
+```bash
+# Confirm loopback binding - Layer 3
+ss -tlnp | grep 18789
+# Should show: 127.0.0.1:18789
+```
+
+---
+
+## Part 3 - Prerequisites and WSL2 Setup
+
+### 3.1 Hardware
 
 Any x86-64 machine running Windows 10/11. A recycled laptop works perfectly.
 
@@ -68,10 +119,9 @@ Any x86-64 machine running Windows 10/11. A recycled laptop works perfectly.
 - Telegram account (for bot creation via @BotFather)
 - Basic comfort with a Linux terminal
 
-### 1.2 Install WSL2 + Ubuntu
+### 3.2 Install WSL2 + Ubuntu
 
 ```powershell
-# PowerShell as Administrator
 wsl --install
 wsl --set-default-version 2
 ```
@@ -83,58 +133,27 @@ sudo apt update && sudo apt upgrade -y
 sudo apt install -y curl wget git nano ufw dnsutils
 ```
 
-### 1.3 WSL2 DNS Hardening (optional but recommended)
-
-WSL2 regenerates `/etc/resolv.conf` on every restart by default. This can break Telegram API resolution after system updates.
-
-```bash
-# Prevent WSL2 from overwriting DNS
-echo -e "[network]\ngenerateResolvConf = false" | sudo tee /etc/wsl.conf
-
-# Set static DNS
-sudo rm /etc/resolv.conf
-echo -e "nameserver 8.8.8.8\nnameserver 8.8.4.4" | sudo tee /etc/resolv.conf
-
-# Lock the file (optional extra hardening)
-sudo chattr +i /etc/resolv.conf
-```
-
-Verify:
-
-```bash
-cat /etc/resolv.conf          # Should show 8.8.8.8
-dig api.telegram.org          # Should resolve
-```
-
-!!! note
-    OpenAI APIs and other external services also depend on reliable DNS. This fix resolves both.
-
 ---
 
-## Part 2 — Install OpenClaw
+## Part 4 - Install OpenClaw
 
 ```bash
-# Review the install script before running (always)
 curl -fsSL https://openclaw.ai/install.sh -o install.sh
 less install.sh
 bash install.sh
 source ~/.bashrc
-
-# Verify installation
 openclaw --version
 openclaw doctor
 ```
 
 !!! note
-    OpenClaw releases frequently. The onboarding wizard and CLI commands shown here reflect the state at time of setup. Check [docs.openclaw.ai](https://docs.openclaw.ai) for changes.
+    OpenClaw releases frequently. Check [docs.openclaw.ai](https://docs.openclaw.ai) for the latest CLI changes.
 
 ---
 
-## Part 3 — Security Configuration
+## Part 5 - Security Configuration (Layers 4, 5, 6)
 
-### 3.1 Onboarding Wizard
-
-Run the onboarding wizard and install the gateway daemon:
+### 5.1 Onboarding Wizard
 
 ```bash
 openclaw onboard --install-daemon
@@ -143,39 +162,30 @@ openclaw onboard --install-daemon
 When prompted:
 
 - Select **OpenAI Codex** as your AI provider
-- Authenticate via **ChatGPT Plus OAuth** (no API key needed for Plus users)
+- Authenticate via **ChatGPT Plus OAuth**
 - Configure your Telegram bot token (from @BotFather)
 - Enable **gateway as background service**
 
 !!! note
-    **API key users:** If you use a platform.openai.com API key instead of OAuth, set it during onboarding. Monitor your billing limit at platform.openai.com.
+    **API key users:** Set your key during onboarding and monitor billing at platform.openai.com.
 
-### 3.2 Authentication Token
-
-Generate a cryptographically strong authentication token:
+### 5.2 Authentication Token (Layer 4)
 
 ```bash
 openclaw auth token generate --length 64
 ```
 
-This token authenticates every API call to your local gateway. 64 characters = 384 bits of entropy.
+64 characters = 384 bits of entropy. Authenticates every API call to your local gateway.
 
-### 3.3 Channel Allowlist
-
-Restrict access to your Telegram chat only:
+### 5.3 Channel Allowlist (Layer 5)
 
 ```bash
-# Get your Telegram chat ID
 openclaw telegram get-chat-id
-
-# Lock to your DM only
 openclaw config set security.allowedChannels '["telegram:YOUR_CHAT_ID"]'
 openclaw config set security.requireDMPairing true
 ```
 
-### 3.4 Tool Policy
-
-Enable explicit allow/deny lists for tool execution:
+### 5.4 Tool Policy (Layer 6)
 
 ```bash
 openclaw config set tools.policy.mode "allowlist"
@@ -184,97 +194,45 @@ openclaw config set tools.policy.allowedTools '["read_file","write_file","run_co
 
 ---
 
-## Part 4 — Credential Security
+## Part 6 - DNS Hardening (Layer 7)
 
-### 4.1 File Permissions
+WSL2 regenerates `/etc/resolv.conf` on every restart. This can break Telegram API and OpenAI API resolution after system updates.
 
 ```bash
-chmod 600 ~/.openclaw/openclaw.json
-chmod 600 ~/.openclaw/auth-profiles.json
-chmod 700 ~/.openclaw/
+echo -e "[network]\ngenerateResolvConf = false" | sudo tee /etc/wsl.conf
+sudo rm /etc/resolv.conf
+echo -e "nameserver 8.8.8.8\nnameserver 8.8.4.4" | sudo tee /etc/resolv.conf
+sudo chattr +i /etc/resolv.conf
 ```
 
 Verify:
 
 ```bash
-ls -la ~/.openclaw/
+cat /etc/resolv.conf
+dig api.telegram.org
 ```
-
-### 4.2 What the Config File Contains
-
-Your `~/.openclaw/openclaw.json` contains:
-
-- Your 64-character authentication token
-- Your Telegram bot token
-- Your AI provider credentials (OAuth token or API key)
-- Channel allowlists and tool policy
-
-Never commit this file. It is excluded by `.gitignore` in this repo.
-
-### 4.3 Spend Cap
-
-For ChatGPT Plus users (OAuth), Codex quota is managed by your Plus subscription (5 hrs/day). For API key users:
-
-```bash
-# Set a hard monthly spend limit at platform.openai.com
-# Billing → Usage limits → Set hard limit (e.g. AUD $20/month)
-```
-
-### 4.4 Key Rotation Protocol
-
-```bash
-# Rotate OpenClaw auth token
-openclaw auth token rotate
-
-# For API key users — rotate at platform.openai.com
-# Keys → Revoke old key → Create new key → Update openclaw.json
-openclaw config set providers.openai.apiKey "sk-..."
-```
-
-Rotation schedule: Rotate if a device is lost, a key is exposed, or quarterly as routine hygiene.
 
 ---
 
-## Part 5 — Supply Chain Security
-
-See the full [Skills Guide](skills.md) for safe skill installation.
-
-Key principles:
-
-- **Review before install** — check clawhub.ai for community feedback and version history
-- **Never install from unreviewed sources** — the ClawHavoc campaign showed how easy it is to publish malicious skills
-- **Version-pin** — use the lockfile at `.clawhub/lock.json`, never rely on `latest`
-- **Update consciously** — review changelogs before `clawhub update`
-
----
-
-## Part 6 — Sandbox Mode (Docker)
+## Part 7 - Sandbox Mode / Docker (Layer 8)
 
 Sandbox mode runs tool execution inside Docker containers with no host access and no network.
 
 ```bash
-# Install Docker
 sudo apt install -y docker.io
 sudo usermod -aG docker $USER
-# Log out and back in, then:
 docker run hello-world
 
-# Enable sandbox in OpenClaw
 openclaw config set sandbox.enabled true
 openclaw config set sandbox.driver "docker"
 openclaw config set sandbox.docker.networkMode "none"
 openclaw config set sandbox.docker.readOnlyRootFilesystem true
-```
-
-Verify:
-
-```bash
 openclaw security audit --deep
 ```
 
-### Gateway & Sandbox Execution Architecture
+### Gateway and Sandbox Execution Architecture
 
-The diagram below demonstrates the interaction between UFW, the loopback interface, the gateway daemon, and the Docker execution environment. It visually proves that the sandbox lacks network access.
+The diagram below demonstrates the interaction between UFW, the loopback interface, the gateway daemon, and the Docker execution environment.
 
 ```mermaid
 graph LR
@@ -282,16 +240,16 @@ graph LR
     classDef allow fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#fff;
     classDef core fill:#4c1d95,stroke:#8b5cf6,stroke-width:2px,color:#fff;
 
-    Ext["External Network<br/>(0.0.0.0)"]:::block
-    UFW{"UFW Firewall<br/>Deny Inbound"}:::block
-    Loop["Loopback Interface<br/>(127.0.0.1)"]:::allow
+    Ext["External Network (0.0.0.0)"]:::block
+    UFW{"UFW Firewall Deny Inbound"}:::block
+    Loop["Loopback Interface (127.0.0.1)"]:::allow
 
     subgraph WSL2 ["WSL2 Ubuntu Host"]
         direction TB
-        GW["OpenClaw Gateway<br/>Port: 18789"]:::core
+        GW["OpenClaw Gateway Port: 18789"]:::core
         subgraph Sandbox ["Docker Sandbox"]
             direction LR
-            Tools["Tool Execution Runtime<br/>(networkMode: none)"]:::allow
+            Tools["Tool Execution Runtime (networkMode: none)"]:::allow
         end
     end
 
@@ -303,93 +261,77 @@ graph LR
 
 ---
 
-## Part 7 — Physical Network Isolation
+## Part 8 - Credential Security (Layer 9)
 
-For maximum isolation, run the agent on a **dedicated network segment** separate from your home network.
+### 8.1 File Permissions
 
-```mermaid
-graph TD
-    classDef ext fill:#7f1d1d,stroke:#ef4444,stroke-width:2px,color:#fff;
-    classDef home fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#fff;
-    classDef agent fill:#1e3a8a,stroke:#3b82f6,stroke-width:2px,color:#fff;
-
-    INT((Internet / OpenAI API)):::ext
-    MOD["ISP Modem"]:::ext
-
-    HR["🏠 Home Router<br/>(Primary SSID)"]:::home
-    HD["Home Devices<br/>(NAS, Phones, Laptops)"]:::home
-
-    AR["🛡️ Agent Router<br/>(Guest SSID / VLAN)"]:::agent
-    AL["OpenClaw Laptop<br/>(WSL2 Ubuntu)"]:::agent
-
-    INT <--> MOD
-    MOD <--> HR
-    HR <--> HD
-
-    MOD <--> AR
-    AR <--> AL
-
-    HD -.->|Strictly Blocked| AL
-    AL -.->|Strictly Blocked| HD
+```bash
+chmod 600 ~/.openclaw/openclaw.json
+chmod 600 ~/.openclaw/auth-profiles.json
+chmod 700 ~/.openclaw/
+ls -la ~/.openclaw/
 ```
 
-This means:
+### 8.2 What the Config File Contains
 
-- Agent can reach the internet (OpenAI Codex API, system updates)
-- Agent **cannot reach** home devices (NAS, printers, other laptops)
-- Home devices **cannot reach** the agent
+Your `~/.openclaw/openclaw.json` contains:
 
-Any consumer router with a guest network or separate SSID achieves this.
+- Your 64-character authentication token
+- Your Telegram bot token
+- Your AI provider credentials (OAuth token or API key)
+- Channel allowlists and tool policy
+
+Never commit this file. It is excluded by `.gitignore` in this repo.
+
+### 8.3 Spend Cap
+
+```bash
+# Billing -> Usage limits -> Set hard limit at platform.openai.com (e.g. AUD $20/month)
+```
+
+### 8.4 Key Rotation Protocol
+
+```bash
+openclaw auth token rotate
+openclaw config set providers.openai.apiKey "sk-..."
+```
+
+Rotation schedule: Rotate if a device is lost, a key is exposed, or quarterly.
 
 ---
 
-## Part 8 — UFW Firewall
+## Part 9 - Supply Chain Security (Layer 10)
 
-```bash
-# Default deny all inbound
-sudo ufw default deny incoming
-sudo ufw default allow outgoing
+See the full [Skills Guide](skills.md) for safe skill installation.
 
-# Allow only what you need
-sudo ufw allow ssh          # If you SSH into this machine
-sudo ufw enable
+Key principles:
 
-# Verify
-sudo ufw status verbose
-```
-
-The gateway binds to loopback only (`127.0.0.1:18789`) by default, so it has zero external surface even without UFW. UFW is defence-in-depth.
-
-```bash
-# Confirm loopback binding
-ss -tlnp | grep 18789
-# Should show: 127.0.0.1:18789
-```
+- **Review before install** - check clawhub.ai for community feedback and version history
+- **Never install from unreviewed sources** - the ClawHavoc campaign showed how easy it is to publish malicious skills
+- **Version-pin** - use the lockfile at `.clawhub/lock.json`, never rely on `latest`
+- **Update consciously** - review changelogs before `clawhub update`
 
 ---
 
-## Part 9 — Health Monitoring
+## Part 10 - Health Monitoring
 
-### 9.1 Built-in Health Check
+### 10.1 Built-in Health Check
 
 ```bash
 openclaw health --json
 openclaw doctor
 ```
 
-### 9.2 External Monitoring with healthchecks.io
+### 10.2 External Monitoring with healthchecks.io
 
-healthchecks.io provides external crash detection — if your machine or gateway goes down and stops pinging, you get alerted.
+healthchecks.io provides external crash detection - if your gateway goes down and stops pinging, you get alerted.
 
 1. Create a free account at [healthchecks.io](https://healthchecks.io)
-2. Create a check — set period to 5 minutes, grace period to 10 minutes
+2. Create a check - set period 5 min, grace period 10 min
 3. Copy the ping URL (`https://hc-ping.com/YOUR_UUID`)
 
 ```bash
-# Test the ping manually
 curl -fsS https://hc-ping.com/YOUR_UUID
-
-# Add to crontab (every 5 minutes)
 crontab -e
 # Add: */5 * * * * /usr/local/bin/openclaw health --quiet && curl -fsS https://hc-ping.com/YOUR_UUID
 ```
@@ -399,16 +341,11 @@ crontab -e
 
 ---
 
-## Part 10 — Security Audit
+## Part 11 - Security Audit
 
 ```bash
-# Full deep security audit
 openclaw security audit --deep
-
-# Check all config
 openclaw doctor
-
-# Review what's exposed
 ss -tlnp
 sudo ufw status verbose
 ls -la ~/.openclaw/
@@ -416,41 +353,30 @@ ls -la ~/.openclaw/
 
 ---
 
-## Security Checklist — Complete Verification
+## Security Checklist - Complete Verification
 
-=== "Prerequisites"
-    - [ ] WSL2 installed and Ubuntu updated
-    - [ ] OpenClaw installed and doctor passes
+=== "Network (Layers 1-3)"
+    - [ ] Dedicated agent router / guest SSID configured - Layer 1
+    - [ ] UFW enabled with default deny inbound - Layer 2
+    - [ ] Gateway binding confirmed on loopback only 127.0.0.1:18789 - Layer 3
 
-=== "Authentication"
-    - [ ] 64-char auth token generated
-    - [ ] Channel allowlist restricted to your Telegram DM
-    - [ ] DM pairing enabled
+=== "Authentication (Layers 4-6)"
+    - [ ] 64-char auth token generated - Layer 4
+    - [ ] Channel allowlist restricted to your Telegram DM - Layer 5
+    - [ ] Tool policy set to allowlist mode - Layer 6
 
-=== "Network"
-    - [ ] UFW enabled with default deny inbound
-    - [ ] Gateway binding confirmed on loopback only (`127.0.0.1:18789`)
-    - [ ] DNS hardening applied (if configured)
+=== "System (Layer 7)"
+    - [ ] DNS hardening applied - static resolv.conf - Layer 7
 
-=== "Credentials"
-    - [ ] `openclaw.json` permissions: `chmod 600`
-    - [ ] `auth-profiles.json` permissions: `chmod 600`
-    - [ ] ChatGPT quota monitored OR platform.openai.com billing limit set
-    - [ ] Rotation protocol documented
-
-=== "Sandbox"
-    - [ ] Docker installed and accessible
-    - [ ] Sandbox mode enabled (docker, no network)
-    - [ ] Security audit passes: `openclaw security audit --deep`
-
-=== "Supply Chain"
-    - [ ] Only reviewed skills installed
-    - [ ] Lockfile committed (`.clawhub/lock.json`)
-    - [ ] No unreviewed skill sources
+=== "Application (Layers 8-10)"
+    - [ ] Docker installed and sandbox enabled with no network - Layer 8
+    - [ ] openclaw.json and auth-profiles.json permissions chmod 600 - Layer 9
+    - [ ] Spend cap / billing limit set - Layer 9
+    - [ ] Only reviewed skills installed, lockfile committed - Layer 10
 
 === "Monitoring"
     - [ ] healthchecks.io external ping configured
-    - [ ] Observability stack deployed — see Observability Guide
+    - [ ] Observability stack deployed - see Observability Guide
     - [ ] Alert thresholds calibrated
 
 === "Ongoing"
