@@ -171,45 +171,41 @@ When prompted:
 
 ### Live Request Flow - Telegram to Tool Execution (Layers 4, 5, 6)
 
-The flowchart below traces every step a message takes from your phone to tool execution. Green nodes are happy-path steps. Red diamonds are security gates — a failure at any gate stops the request immediately.
+The diagram below traces the full path of a single message from your phone to tool execution.
+Each security gate (Steps 2, 3, 5) shows both outcomes: the happy path continues down, and the FAIL path returns to you immediately.
 
 ```mermaid
-flowchart TD
-    classDef happy fill:#166534,stroke:#16a34a,stroke-width:2px,color:#fff;
-    classDef gate fill:#7f1d1d,stroke:#ef4444,stroke-width:2px,color:#fff;
-    classDef reject fill:#450a0a,stroke:#b91c1c,stroke-width:1px,color:#fca5a5,font-style:italic;
-    classDef action fill:#1e3a8a,stroke:#3b82f6,stroke-width:2px,color:#fff;
+sequenceDiagram
+    autonumber
+    actor User as You (Telegram)
+    participant GW as Gateway (127.0.0.1:18789)
+    participant Gates as Security Gates (L4 / L5 / L6)
+    participant AI as OpenAI Codex
+    participant SB as Docker Sandbox
 
-    A(["You send a Telegram DM"]):::happy
-    B["Gateway receives webhook"]:::action
+    User->>GW: Send message via Telegram DM
+    GW->>Gates: Forward with auth token + chat_id
 
-    C{"L4: Valid auth token?"}:::gate
-    C_fail(["Silent drop"]):::reject
+    Note over Gates: Layer 4 - Token Check
+    Gates--xUser: FAIL - Silent drop (invalid token)
+    Gates->>Gates: PASS - token valid
 
-    D{"L5: chat_id in allowlist?"}:::gate
-    D_fail(["Silent drop"]):::reject
+    Note over Gates: Layer 5 - Channel Check
+    Gates--xUser: FAIL - Silent drop (chat_id not in allowlist)
+    Gates->>AI: PASS - Forward message for inference
 
-    E["Forward to OpenAI Codex"]:::action
-    F["Codex returns response + tool_calls"]:::action
+    AI-->>Gates: Response + tool_calls
 
-    G{"L6: Tools in allowlist?"}:::gate
-    G_fail(["Error: tool not permitted"]):::reject
+    Note over Gates: Layer 6 - Tool Policy Check
+    Gates--xUser: FAIL - Error: tool not permitted
+    Gates->>SB: PASS - Execute approved tool (no network)
 
-    H["Execute tool in Docker sandbox"]:::action
-    I(["Final response sent to you"]):::happy
-
-    A --> B
-    B --> C
-    C -- FAIL --> C_fail
-    C -- PASS --> D
-    D -- FAIL --> D_fail
-    D -- PASS --> E
-    E --> F
-    F --> G
-    G -- FAIL --> G_fail
-    G -- PASS --> H
-    H --> I
+    SB-->>Gates: Tool result
+    Gates-->>User: Final response via Telegram
 ```
+
+!!! tip
+    Steps 2, 3 and 5 are security gates. A failure at any gate stops the request immediately — no further processing occurs.
 
 ### 5.2 Authentication Token (Layer 4)
 
