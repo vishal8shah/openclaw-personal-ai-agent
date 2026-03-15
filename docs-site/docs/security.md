@@ -171,37 +171,33 @@ When prompted:
 
 ### Live Request Flow - Telegram to Tool Execution (Layers 4, 5, 6)
 
-The flowchart below traces every step a message takes from your phone to tool execution.
-Green nodes are the happy path. Red diamond gates (L4, L5, L6) must all pass — a failure at any gate stops the request immediately. Red arrows show rejection paths.
+The flowchart below traces every step a message takes from your phone to tool execution. Green nodes are happy-path steps. Red diamond gates (L4, L5, L6) must all pass — a failure at any gate stops the request immediately. Red arrows show rejection paths.
 
 ```mermaid
 flowchart TD
-    classDef start fill:#14532d,stroke:#16a34a,stroke-width:2px,color:#fff,padding:10px;
-    classDef action fill:#1e3a8a,stroke:#3b82f6,stroke-width:2px,color:#fff,padding:10px;
+    classDef start fill:#14532d,stroke:#16a34a,stroke-width:2px,color:#fff;
+    classDef action fill:#1e3a8a,stroke:#3b82f6,stroke-width:2px,color:#fff;
     classDef gate fill:#7f1d1d,stroke:#ef4444,stroke-width:3px,color:#fff;
     classDef reject fill:#450a0a,stroke:#dc2626,stroke-width:2px,color:#fca5a5;
-    classDef finish fill:#14532d,stroke:#16a34a,stroke-width:2px,color:#fff,padding:10px;
+    classDef finish fill:#14532d,stroke:#16a34a,stroke-width:2px,color:#fff;
 
-    A(["📱  You send a Telegram DM"]):::start
-    B["🔀  Gateway receives webhook\n127.0.0.1:18789"]:::action
+    A(["You send a Telegram DM"]):::start
+    B["Gateway receives webhook - 127.0.0.1:18789"]:::action
 
-    C{"`**L4 — Auth Token**
-    Is the 64-char token valid?`"}:::gate
-    C_fail(["🚫  Silent drop\nNo reply sent"]):::reject
+    C{"L4 - Auth Token: Is the 64-char token valid?"}:::gate
+    C_fail(["Silent drop - no reply sent"]):::reject
 
-    D{"`**L5 — Channel Check**
-    Is chat_id in the allowlist?`"}:::gate
-    D_fail(["🚫  Silent drop\nNo reply sent"]):::reject
+    D{"L5 - Channel Check: Is chat_id in the allowlist?"}:::gate
+    D_fail(["Silent drop - no reply sent"]):::reject
 
-    E["🤖  Forward to OpenAI Codex"]:::action
-    F["💬  Codex returns response\n+ tool_calls"]:::action
+    E["Forward to OpenAI Codex for inference"]:::action
+    F["Codex returns response and tool_calls"]:::action
 
-    G{"`**L6 — Tool Policy**
-    Are all tools in the allowlist?`"}:::gate
-    G_fail(["⛔  Error returned\nTool not permitted"]):::reject
+    G{"L6 - Tool Policy: Are all tools in the allowlist?"}:::gate
+    G_fail(["Error returned - tool not permitted"]):::reject
 
-    H["⚙️  Execute tool in Docker sandbox\nnetwork: none"]:::action
-    I(["✅  Final response sent\nback to you via Telegram"]):::finish
+    H["Execute tool in Docker sandbox - network: none"]:::action
+    I(["Final response sent back to you via Telegram"]):::finish
 
     A --> B
     B --> C
@@ -215,9 +211,9 @@ flowchart TD
     G -- FAIL --> G_fail
     H --> I
 
-    linkStyle 3 stroke:#ef4444,stroke-width:3px,color:#ef4444;
-    linkStyle 5 stroke:#ef4444,stroke-width:3px,color:#ef4444;
-    linkStyle 9 stroke:#ef4444,stroke-width:3px,color:#ef4444;
+    linkStyle 3 stroke:#ef4444,stroke-width:3px;
+    linkStyle 5 stroke:#ef4444,stroke-width:3px;
+    linkStyle 9 stroke:#ef4444,stroke-width:3px;
 ```
 
 !!! tip
