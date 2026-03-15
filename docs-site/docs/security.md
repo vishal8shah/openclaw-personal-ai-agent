@@ -171,41 +171,44 @@ When prompted:
 
 ### Live Request Flow - Telegram to Tool Execution (Layers 4, 5, 6)
 
-The diagram below traces the full path of a single message from your phone to tool execution.
-Each security gate shows both the PASS path (continuing down) and the FAIL path (rejected back to the user).
+The flowchart below traces every step a message takes from your phone to tool execution. Green nodes are happy-path steps. Red diamonds are security gates — a failure at any gate stops the request immediately.
 
 ```mermaid
-sequenceDiagram
-    autonumber
-    actor User as You (Telegram)
-    participant GW as Gateway
-    participant Gates as Security Gates
-    participant AI as OpenAI Codex
-    participant SB as Docker Sandbox
+flowchart TD
+    classDef happy fill:#166534,stroke:#16a34a,stroke-width:2px,color:#fff;
+    classDef gate fill:#7f1d1d,stroke:#ef4444,stroke-width:2px,color:#fff;
+    classDef reject fill:#450a0a,stroke:#b91c1c,stroke-width:1px,color:#fca5a5,font-style:italic;
+    classDef action fill:#1e3a8a,stroke:#3b82f6,stroke-width:2px,color:#fff;
 
-    User->>GW: Send message via Telegram DM
-    GW->>Gates: Forward with auth token + chat_id
+    A(["You send a Telegram DM"]):::happy
+    B["Gateway receives webhook"]:::action
 
-    Note over Gates: L4 - Token Check
-    alt FAIL: token invalid
-        Gates-->>User: Silent drop (no reply)
-    else PASS: token valid
-        Note over Gates: L5 - Channel Check
-        alt FAIL: chat_id not in allowlist
-            Gates-->>User: Silent drop (no reply)
-        else PASS: chat_id allowed
-            Gates->>AI: Forward message for inference
-            AI-->>Gates: Response + tool_calls
-            Note over Gates: L6 - Tool Policy Check
-            alt FAIL: tool not in allowlist
-                Gates-->>User: Error - tool not permitted
-            else PASS: tool approved
-                Gates->>SB: Execute tool (no network)
-                SB-->>Gates: Tool result
-                Gates-->>User: Final response via Telegram
-            end
-        end
-    end
+    C{"L4: Valid auth token?"}:::gate
+    C_fail(["Silent drop"]):::reject
+
+    D{"L5: chat_id in allowlist?"}:::gate
+    D_fail(["Silent drop"]):::reject
+
+    E["Forward to OpenAI Codex"]:::action
+    F["Codex returns response + tool_calls"]:::action
+
+    G{"L6: Tools in allowlist?"}:::gate
+    G_fail(["Error: tool not permitted"]):::reject
+
+    H["Execute tool in Docker sandbox"]:::action
+    I(["Final response sent to you"]):::happy
+
+    A --> B
+    B --> C
+    C -- FAIL --> C_fail
+    C -- PASS --> D
+    D -- FAIL --> D_fail
+    D -- PASS --> E
+    E --> F
+    F --> G
+    G -- FAIL --> G_fail
+    G -- PASS --> H
+    H --> I
 ```
 
 ### 5.2 Authentication Token (Layer 4)
