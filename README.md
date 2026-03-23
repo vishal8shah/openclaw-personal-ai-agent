@@ -21,6 +21,8 @@ A complete, battle-tested guide to deploying [OpenClaw](https://openclaw.ai) as 
 
 This isn't a quickstart. It's what a secure, observable deployment actually looks like.
 
+> This guide assumes you're running **long-lived agents** with real tools, real credentials, and real blast radius — security and observability are non-negotiable, not afterthoughts.
+
 ---
 
 ## Why This Exists
